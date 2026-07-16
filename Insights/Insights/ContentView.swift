@@ -16,16 +16,18 @@ struct ContentView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            Image(systemName: "heart.text.square")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-
-            Text("Insights")
-                .font(.title.bold())
+            HStack {
+                Image(systemName: "heart.text.clipboard")
+                    .font(.system(.largeTitle))
+                    .foregroundStyle(.tint)
+                
+                Text("Insights")
+                    .font(.system(.largeTitle, design: .serif))
+            }
 
             Text(statusMessage)
                 .foregroundStyle(.secondary)
-
+            
             if HealthKitService.isAvailable {
                 Button("Connect Apple Health") {
                     Task { await connect() }
@@ -37,6 +39,7 @@ struct ContentView: View {
             }
         }
         .padding()
+    
     }
 
     private func connect() async {

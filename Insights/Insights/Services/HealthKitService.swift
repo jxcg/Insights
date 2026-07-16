@@ -9,7 +9,7 @@ final class HealthKitService {
     /// False on devices without health data (e.g. iPad); callers should hide
     /// health UI entirely in that case.
     static var isAvailable: Bool {
-        HKHealthStore.isHealthDataAvailable()
+        HKHealthStore.isHealthDataAvailable() 
     }
 
     /// Everything the app reads, requested up front in one authorization pass.
