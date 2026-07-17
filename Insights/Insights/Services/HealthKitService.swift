@@ -54,6 +54,54 @@ final class HealthKitService {
         return seriesByKind
     }
 
+    /// Pulls the last N days of sleep data as plain values
+    /// only time actually asleep survives, in-bed and awake get dropped here
+    /// so the rest of the app never has to think about them
+    private func fetchAsleepSamples(daysBack: Int) async throws -> [SleepSample] {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: .now)
+        guard let windowStart = calendar.date(byAdding: .day, value: -daysBack, to: today) else {
+            return []
+        }
+
+        let sortByStart = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+        let samples: [HKSample] = try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: HKCategoryType(.sleepAnalysis),
+                predicate: HKQuery.predicateForSamples(withStart: windowStart, end: .now),
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [sortByStart]
+            ) { _, samples, error in
+                if let samples {
+                    continuation.resume(returning: samples)
+                } else {
+                    continuation.resume(throwing: error ?? HealthKitServiceError.noResult)
+                }
+            }
+            store.execute(query)
+        }
+
+        return samples.compactMap { sample in
+            guard let category = sample as? HKCategorySample,
+                  let stage = Self.asleepStage(for: category.value) else {
+                return nil
+            }
+            return SleepSample(start: category.startDate, end: category.endDate, stage: stage)
+        }
+    }
+
+    /// HealthKit's raw category number as a sleep stage, nil if it
+    /// wasn't sleep at all (in bed, awake)
+    private static func asleepStage(for categoryValue: Int) -> SleepSample.Stage? {
+        switch HKCategoryValueSleepAnalysis(rawValue: categoryValue) {
+        case .asleepUnspecified: .unspecified
+        case .asleepCore: .core
+        case .asleepDeep: .deep
+        case .asleepREM: .rem
+        default: nil
+        }
+    }
+
     /// Runs one statistics-collection query for a metric: samples bucketed
     /// into calendar days anchored at local midnight, each day collapsed to
     /// one value per the metric's aggregation rule.
