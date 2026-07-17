@@ -65,45 +65,24 @@ enum SleepNightAggregator {
     /// The whole pipeline in one call, samples in, nights out oldest first
     /// cluster into sessions, pick each day's night, sum the merged durations
     static func nights(from samples: [SleepSample], calendar: Calendar = .current) -> [SleepNight] {
-        let nightSessions = nightsByWakeDay(sessions(from: samples), calendar: calendar)
-        return nightSessions
-            .map { wakeDay, session in
-                let durations = durations(for: session)
-                return SleepNight(
-                    wakeDay: wakeDay,
-                    start: session.start,
-                    end: session.end,
-                    asleep: durations.asleep,
-                    deep: durations.deep,
-                    rem: durations.rem
-                )
-            }
+        nightsByWakeDay(sessions(from: samples), calendar: calendar)
+            .map { wakeDay, session in night(for: session, wakeDay: wakeDay) }
             .sorted { $0.wakeDay < $1.wakeDay }
     }
 
-    /// How much of a night was truly asleep, and how much of that
-    /// was deep or rem — nil when the data never recorded stages
-    struct Durations {
-        let asleep: TimeInterval
-        let deep: TimeInterval?
-        let rem: TimeInterval?
-    }
-
-    /// Sums a session's sleep without double-counting
+    /// Sums one session into its night summary, without double-counting
     /// phone and watch can both log the same minutes, so overlaps
     /// are merged before adding — every minute counts once
     /// deep and rem stay nil if no sample in the session has stages
-    static func durations(for session: Session) -> Durations {
-        let asleep = mergedDuration(of: session.samples)
-
+    static func night(for session: Session, wakeDay: Date) -> SleepNight {
         let hasStageData = session.samples.contains { $0.stage != .unspecified }
-        guard hasStageData else {
-            return Durations(asleep: asleep, deep: nil, rem: nil)
-        }
-        return Durations(
-            asleep: asleep,
-            deep: mergedDuration(of: session.samples.filter { $0.stage == .deep }),
-            rem: mergedDuration(of: session.samples.filter { $0.stage == .rem })
+        return SleepNight(
+            wakeDay: wakeDay,
+            start: session.start,
+            end: session.end,
+            asleep: mergedDuration(of: session.samples),
+            deep: hasStageData ? mergedDuration(of: session.samples.filter { $0.stage == .deep }) : nil,
+            rem: hasStageData ? mergedDuration(of: session.samples.filter { $0.stage == .rem }) : nil
         )
     }
 

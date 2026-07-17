@@ -16,8 +16,4 @@ struct SleepSample {
     let start: Date
     let end: Date
     let stage: Stage
-
-    var duration: TimeInterval {
-        end.timeIntervalSince(start)
-    }
 }

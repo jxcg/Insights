@@ -54,6 +54,12 @@ final class HealthKitService {
         return seriesByKind
     }
 
+    /// Midnight N days back, where every trailing-window query starts
+    private func windowStart(daysBack: Int) -> Date? {
+        let calendar = Calendar.current
+        return calendar.date(byAdding: .day, value: -daysBack, to: calendar.startOfDay(for: .now))
+    }
+
     /// Nights of sleep over the trailing window, oldest first
     /// however many exist is fine, one night works as well as ninety
     /// errors or no data just mean an empty list, like the daily metrics
@@ -66,9 +72,7 @@ final class HealthKitService {
     /// only time actually asleep survives, in-bed and awake get dropped here
     /// so the rest of the app never has to think about them
     private func fetchAsleepSamples(daysBack: Int) async throws -> [SleepSample] {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: .now)
-        guard let windowStart = calendar.date(byAdding: .day, value: -daysBack, to: today) else {
+        guard let windowStart = windowStart(daysBack: daysBack) else {
             return []
         }
 
@@ -114,9 +118,7 @@ final class HealthKitService {
     /// into calendar days anchored at local midnight, each day collapsed to
     /// one value per the metric's aggregation rule.
     private func dailySeries(for kind: MetricKind, daysBack: Int) async throws -> [DailyAggregate] {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: .now)
-        guard let windowStart = calendar.date(byAdding: .day, value: -daysBack, to: today) else {
+        guard let windowStart = windowStart(daysBack: daysBack) else {
             return []
         }
 

@@ -74,9 +74,10 @@ struct ContentView: View {
             try await healthKit.requestAuthorization()
             statusMessage = "Fetching daily aggregates…"
             await loadDayCounts()
+            await loadSleepSummary()
             statusMessage = "Last 90 days, days with data per metric:"
         } catch {
-            statusMessage = "Authorization failed: \(error.localizedDescription)"
+            statusMessage = "Authorisation failed: \(error.localizedDescription)"
         }
         // May need another way to re-trigger in the event a user does not authorise, but doesn't want to go through Settings (if this is possible; am aware Apple does not make it easy to re-trigger events after a user denies permissions)
     }
@@ -86,7 +87,6 @@ struct ContentView: View {
     private func loadDayCounts() async {
         let aggregates = await healthKit.fetchDailyAggregates()
         dayCounts = MetricKind.allCases.map { (metric: $0, days: aggregates[$0]?.count ?? 0) }
-        await loadSleepSummary()
     }
 
     /// One line to eyeball against the Health app's sleep view:
@@ -94,7 +94,7 @@ struct ContentView: View {
     private func loadSleepSummary() async {
         let nights = await healthKit.fetchSleepNights()
         guard let latest = nights.last else {
-            sleepSummary = "none found"
+            sleepSummary = "Not Available"
             return
         }
         var summary = "\(nights.count) · last \(String(format: "%.1f", latest.asleepHours))h"
