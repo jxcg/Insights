@@ -1,10 +1,10 @@
 import Foundation
 
-/// One night of sleep, summarised and ready to use
-/// this is the end product of the sleep pipeline and the shape
+/// One night of sleep summarised and ready to use
+/// the end product of the sleep pipeline and the shape
 /// the analytics engine and UI will read
 struct SleepNight {
-    /// The morning's date, midnight-anchored
+    /// The morning's date, midnight anchored
     let wakeDay: Date
     let start: Date
     let end: Date
@@ -12,8 +12,9 @@ struct SleepNight {
     /// Seconds actually asleep, overlaps already merged out
     let asleep: TimeInterval
 
-    /// Seconds of deep and rem sleep, nil when the night's data
-    /// never recorded stages so we can't know
+    /// Seconds of deep and rem sleep, nil when the night's
+    /// data never recorded stages
+    /// nil means UNKNOWN, not zero
     let deep: TimeInterval?
     let rem: TimeInterval?
 

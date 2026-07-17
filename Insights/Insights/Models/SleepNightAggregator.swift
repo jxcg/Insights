@@ -1,11 +1,11 @@
 import Foundation
 
 /// Turns raw sleep samples into nightly summaries
-/// Pure logic, no HealthKit — easy to test, and the analytics
-/// engine will later read what this produces
+/// pure logic with no HealthKit so it's easy to test
+/// the analytics engine will later read what this produces
 enum SleepNightAggregator {
 
-    /// One sleep episode, either a night or a nap
+    /// One sleep episode, a night or a nap
     struct Session {
         var samples: [SleepSample]
         var start: Date
@@ -47,7 +47,7 @@ enum SleepNightAggregator {
         return sessions
     }
 
-    /// A sleep belongs to the day you wake up from it
+    /// A sleep belongs to the day you WAKE UP from it
     /// so 23:30 to 07:00 counts as the morning's date, same as the Health app
     /// longest sleep of the day is the night, shorter ones are naps and dropped
     static func nightsByWakeDay(_ sessions: [Session], calendar: Calendar = .current) -> [Date: Session] {
@@ -70,9 +70,9 @@ enum SleepNightAggregator {
             .sorted { $0.wakeDay < $1.wakeDay }
     }
 
-    /// Sums one session into its night summary, without double-counting
-    /// phone and watch can both log the same minutes, so overlaps
-    /// are merged before adding — every minute counts once
+    /// Sums one session into its night summary without double counting
+    /// phone and watch can log the same minutes so overlaps are merged
+    /// before adding, every minute counts ONCE
     /// deep and rem stay nil if no sample in the session has stages
     static func night(for session: Session, wakeDay: Date) -> SleepNight {
         let hasStageData = session.samples.contains { $0.stage != .unspecified }

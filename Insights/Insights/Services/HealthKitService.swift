@@ -54,7 +54,7 @@ final class HealthKitService {
         return seriesByKind
     }
 
-    /// Midnight N days back, where every trailing-window query starts
+    /// Midnight N days back, where every trailing window query starts
     private func windowStart(daysBack: Int) -> Date? {
         let calendar = Calendar.current
         return calendar.date(byAdding: .day, value: -daysBack, to: calendar.startOfDay(for: .now))
