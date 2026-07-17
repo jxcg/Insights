@@ -54,6 +54,14 @@ final class HealthKitService {
         return seriesByKind
     }
 
+    /// Nights of sleep over the trailing window, oldest first
+    /// however many exist is fine, one night works as well as ninety
+    /// errors or no data just mean an empty list, like the daily metrics
+    func fetchSleepNights(daysBack: Int = 90) async -> [SleepNight] {
+        let samples = (try? await fetchAsleepSamples(daysBack: daysBack)) ?? []
+        return SleepNightAggregator.nights(from: samples)
+    }
+
     /// Pulls the last N days of sleep data as plain values
     /// only time actually asleep survives, in-bed and awake get dropped here
     /// so the rest of the app never has to think about them

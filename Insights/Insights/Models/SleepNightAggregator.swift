@@ -62,6 +62,25 @@ enum SleepNightAggregator {
         return nights
     }
 
+    /// The whole pipeline in one call, samples in, nights out oldest first
+    /// cluster into sessions, pick each day's night, sum the merged durations
+    static func nights(from samples: [SleepSample], calendar: Calendar = .current) -> [SleepNight] {
+        let nightSessions = nightsByWakeDay(sessions(from: samples), calendar: calendar)
+        return nightSessions
+            .map { wakeDay, session in
+                let durations = durations(for: session)
+                return SleepNight(
+                    wakeDay: wakeDay,
+                    start: session.start,
+                    end: session.end,
+                    asleep: durations.asleep,
+                    deep: durations.deep,
+                    rem: durations.rem
+                )
+            }
+            .sorted { $0.wakeDay < $1.wakeDay }
+    }
+
     /// How much of a night was truly asleep, and how much of that
     /// was deep or rem — nil when the data never recorded stages
     struct Durations {
