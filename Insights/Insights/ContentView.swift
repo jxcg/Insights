@@ -6,15 +6,23 @@
 //
 
 import SwiftUI
+import SwiftData
 
-/// Minimal launch screen: shows Health availability and lets the user trigger
-/// the HealthKit authorization sheet.
+/// Verification screen over the cache
+/// on launch it shows whatever SwiftData has, no HealthKit calls at all
+/// the sync button is the ONLY thing that talks to HealthKit
 struct ContentView: View {
     private let healthKit = HealthKitService()
 
-    @State private var statusMessage = "Not connected"
-    @State private var dayCounts: [(metric: MetricKind, days: Int)] = []
-    @State private var sleepSummary: String?
+    @Environment(\.modelContext) private var modelContext
+
+    /// Live views of the cache, they refresh themselves when a sync writes
+    @Query private var metricRecords: [DailyMetricRecord]
+    @Query(sort: \SleepNightRecord.wakeDay) private var nightRecords: [SleepNightRecord]
+    @Query private var anchors: [SyncAnchorRecord]
+
+    @State private var errorMessage: String?
+    @State private var isSyncing = false
 
     var body: some View {
         VStack(spacing: 16) {
@@ -22,25 +30,26 @@ struct ContentView: View {
                 Image(systemName: "heart.text.clipboard")
                     .font(.system(.largeTitle))
                     .foregroundStyle(.tint)
-                
+
                 Text("Insights")
                     .font(.system(.largeTitle, design: .serif))
             }
 
-            Text(statusMessage)
+            Text(status)
                 .foregroundStyle(.secondary)
-            
+
             if HealthKitService.isAvailable {
-                Button("Connect Apple Health") {
-                    Task { await connect() }
+                Button("Sync Apple Health") {
+                    Task { await sync() }
                 }
                 .buttonStyle(.borderedProminent)
+                .disabled(isSyncing)
             } else {
                 Text("Health data isn't available on this device.")
                     .foregroundStyle(.secondary)
             }
 
-            if !dayCounts.isEmpty {
+            if !metricRecords.isEmpty || !nightRecords.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(dayCounts, id: \.metric) { entry in
                         HStack {
@@ -52,59 +61,72 @@ struct ContentView: View {
                         }
                         .font(.callout)
                     }
-                    if let sleepSummary {
-                        HStack {
-                            Text("Sleep nights")
-                            Spacer()
-                            Text(sleepSummary)
-                                .monospacedDigit()
-                        }
-                        .font(.callout)
+                    HStack {
+                        Text("Sleep nights")
+                        Spacer()
+                        Text(sleepSummary)
+                            .monospacedDigit()
                     }
+                    .font(.callout)
                 }
                 .padding(.top, 8)
             }
         }
         .padding()
-    
     }
 
-    private func connect() async {
-        do {
-            try await healthKit.requestAuthorization()
-            statusMessage = "Fetching daily aggregates…"
-            await loadDayCounts()
-            await loadSleepSummary()
-            statusMessage = "Last 90 days, days with data per metric:"
-        } catch {
-            statusMessage = "Authorisation failed: \(error.localizedDescription)"
+    /// What the status line says, syncing beats errors beats cache age
+    /// a last-synced time surviving relaunch is the cache working
+    private var status: String {
+        if isSyncing {
+            return "Syncing…"
         }
-        // May need another way to re-trigger in the event a user does not authorise, but doesn't want to go through Settings (if this is possible; am aware Apple does not make it easy to re-trigger events after a user denies permissions)
-    }
-
-    /// Counts how many of the last 90 days have data for each metric — days
-    /// without samples produce no entry, so the count exposes gaps.
-    private func loadDayCounts() async {
-        let aggregates = await healthKit.fetchDailyAggregates()
-        dayCounts = MetricKind.allCases.map { (metric: $0, days: aggregates[$0]?.count ?? 0) }
-    }
-
-    /// One line to eyeball against the Health app's sleep view:
-    /// how many nights we found, and the latest night's numbers
-    private func loadSleepSummary() async {
-        let nights = await healthKit.fetchSleepNights()
-        guard let latest = nights.last else {
-            sleepSummary = "Not Available"
-            return
+        if let errorMessage {
+            return errorMessage
         }
-        var summary = "\(nights.count) · last \(String(format: "%.1f", latest.asleepHours))h"
+        if let lastSynced = anchors.map(\.lastSynced).max() {
+            return "Last synced \(lastSynced.formatted(date: .abbreviated, time: .shortened))"
+        }
+        return "Not connected"
+    }
+
+    /// Days with data per metric, straight from the cache
+    private var dayCounts: [(metric: MetricKind, days: Int)] {
+        MetricKind.allCases.map { kind in
+            (metric: kind, days: metricRecords.filter { $0.metricKind == kind.rawValue }.count)
+        }
+    }
+
+    /// One line to eyeball against the Health app, count plus the latest night
+    private var sleepSummary: String {
+        guard let latest = nightRecords.last?.night else {
+            return "Not Available"
+        }
+        var summary = "\(nightRecords.count) · last \(String(format: "%.1f", latest.asleepHours))h"
         if let deep = latest.deepPercent, let rem = latest.remPercent {
             summary += " · deep \(Int(deep))% rem \(Int(rem))%"
         }
-        sleepSummary = summary
+        return summary
+    }
+
+    private func sync() async {
+        isSyncing = true
+        defer { isSyncing = false }
+        do {
+            try await healthKit.requestAuthorization()
+            await SyncService(healthKit: healthKit, context: modelContext).sync()
+            errorMessage = nil
+        } catch {
+            errorMessage = "Authorisation failed: \(error.localizedDescription)"
+        }
+        // May need another way to re-trigger in the event a user does not authorise, but doesn't want to go through Settings (if this is possible; am aware Apple does not make it easy to re-trigger events after a user denies permissions)
     }
 }
 
 #Preview {
     ContentView()
+        .modelContainer(
+            for: [DailyMetricRecord.self, SleepNightRecord.self, SyncAnchorRecord.self],
+            inMemory: true
+        )
 }
