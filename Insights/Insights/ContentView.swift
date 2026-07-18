@@ -14,6 +14,7 @@ struct ContentView: View {
 
     @State private var statusMessage = "Not connected"
     @State private var dayCounts: [(metric: MetricKind, days: Int)] = []
+    @State private var sleepSummary: String?
 
     var body: some View {
         VStack(spacing: 16) {
@@ -51,6 +52,15 @@ struct ContentView: View {
                         }
                         .font(.callout)
                     }
+                    if let sleepSummary {
+                        HStack {
+                            Text("Sleep nights")
+                            Spacer()
+                            Text(sleepSummary)
+                                .monospacedDigit()
+                        }
+                        .font(.callout)
+                    }
                 }
                 .padding(.top, 8)
             }
@@ -64,9 +74,10 @@ struct ContentView: View {
             try await healthKit.requestAuthorization()
             statusMessage = "Fetching daily aggregates…"
             await loadDayCounts()
+            await loadSleepSummary()
             statusMessage = "Last 90 days, days with data per metric:"
         } catch {
-            statusMessage = "Authorization failed: \(error.localizedDescription)"
+            statusMessage = "Authorisation failed: \(error.localizedDescription)"
         }
         // May need another way to re-trigger in the event a user does not authorise, but doesn't want to go through Settings (if this is possible; am aware Apple does not make it easy to re-trigger events after a user denies permissions)
     }
@@ -76,6 +87,21 @@ struct ContentView: View {
     private func loadDayCounts() async {
         let aggregates = await healthKit.fetchDailyAggregates()
         dayCounts = MetricKind.allCases.map { (metric: $0, days: aggregates[$0]?.count ?? 0) }
+    }
+
+    /// One line to eyeball against the Health app's sleep view:
+    /// how many nights we found, and the latest night's numbers
+    private func loadSleepSummary() async {
+        let nights = await healthKit.fetchSleepNights()
+        guard let latest = nights.last else {
+            sleepSummary = "Not Available"
+            return
+        }
+        var summary = "\(nights.count) · last \(String(format: "%.1f", latest.asleepHours))h"
+        if let deep = latest.deepPercent, let rem = latest.remPercent {
+            summary += " · deep \(Int(deep))% rem \(Int(rem))%"
+        }
+        sleepSummary = summary
     }
 }
 
