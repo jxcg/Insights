@@ -77,13 +77,21 @@ struct ContentView: View {
                         }
                         .buttonStyle(.plain)
                     }
-                    HStack {
-                        Text("Sleep nights")
-                        Spacer()
-                        Text(sleepSummary)
-                            .monospacedDigit()
+                    NavigationLink {
+                        SleepNightsView()
+                    } label: {
+                        HStack {
+                            Text("Sleep nights")
+                            Spacer()
+                            Text(sleepSummary)
+                                .monospacedDigit()
+                            Image(systemName: "chevron.right")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .font(.callout)
                     }
-                    .font(.callout)
+                    .buttonStyle(.plain)
                 }
                 .padding(.top, 8)
             }

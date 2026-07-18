@@ -1,3 +1,4 @@
+import Charts
 import SwiftUI
 import SwiftData
 
@@ -24,6 +25,9 @@ struct MetricDetailView: View {
                 Text("No cached days for this metric.")
                     .foregroundStyle(.secondary)
             } else {
+                Section {
+                    chart
+                }
                 ForEach(records) { record in
                     HStack {
                         Text(record.date.formatted(date: .abbreviated, time: .omitted))
@@ -37,6 +41,27 @@ struct MetricDetailView: View {
         }
         .navigationTitle(kind.displayName)
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    /// Shape check over the same days the table lists
+    /// bars for summed metrics, a line for averaged ones
+    private var chart: some View {
+        Chart(records) { record in
+            if kind.aggregation == .sum {
+                BarMark(
+                    x: .value("Day", record.date, unit: .day),
+                    y: .value(kind.displayName, record.value)
+                )
+            } else {
+                LineMark(
+                    x: .value("Day", record.date, unit: .day),
+                    y: .value(kind.displayName, record.value)
+                )
+            }
+        }
+        // averaged metrics sit far from zero, temperature would plot as a flat line
+        .chartYScale(domain: .automatic(includesZero: kind.aggregation == .sum))
+        .frame(height: 160)
     }
 
     /// Summed metrics read as whole numbers, averaged ones keep a decimal
