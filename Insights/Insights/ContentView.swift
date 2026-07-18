@@ -25,6 +25,14 @@ struct ContentView: View {
     @State private var isSyncing = false
 
     var body: some View {
+        NavigationStack {
+            dashboard
+        }
+    }
+
+    /// The summary screen itself, header plus sync plus cache overview
+    /// each metric row links through to its raw day by day table
+    private var dashboard: some View {
         VStack(spacing: 16) {
             HStack {
                 Image(systemName: "heart.text.clipboard")
@@ -52,14 +60,22 @@ struct ContentView: View {
             if !metricRecords.isEmpty || !nightRecords.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(dayCounts, id: \.metric) { entry in
-                        HStack {
-                            Text(entry.metric.displayName)
-                            Spacer()
-                            Text("\(entry.days) days")
-                                .monospacedDigit()
-                                .foregroundStyle(entry.days == 0 ? .secondary : .primary)
+                        NavigationLink {
+                            MetricDetailView(kind: entry.metric)
+                        } label: {
+                            HStack {
+                                Text(entry.metric.displayName)
+                                Spacer()
+                                Text("\(entry.days) days")
+                                    .monospacedDigit()
+                                    .foregroundStyle(entry.days == 0 ? .secondary : .primary)
+                                Image(systemName: "chevron.right")
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .font(.callout)
                         }
-                        .font(.callout)
+                        .buttonStyle(.plain)
                     }
                     HStack {
                         Text("Sleep nights")
