@@ -13,7 +13,7 @@ final class HealthKitService {
     }
 
     /// Everything the app reads, requested up front in one authorization pass.
-    private let readTypes: Set<HKObjectType> = [
+    private let readHealthTypes: Set<HKObjectType> = [
         HKQuantityType(.heartRate),
         HKQuantityType(.restingHeartRate),
         HKQuantityType(.heartRateVariabilitySDNN),
@@ -30,7 +30,7 @@ final class HealthKitService {
     /// return without UI. HealthKit never reveals whether read access was
     /// granted — absent data is the only signal.
     func requestAuthorization() async throws {
-        try await store.requestAuthorization(toShare: [], read: readTypes)
+        try await store.requestAuthorization(toShare: [], read: readHealthTypes)
     }
 
     /// One day's aggregated value for a metric.
@@ -64,18 +64,23 @@ final class HealthKitService {
     /// however many exist is fine, one night works as well as ninety
     /// errors or no data just mean an empty list, like the daily metrics
     func fetchSleepNights(daysBack: Int = 90) async -> [SleepNight] {
-        let samples = (try? await fetchAsleepSamples(daysBack: daysBack)) ?? []
+        guard let windowStart = windowStart(daysBack: daysBack) else {
+            return []
+        }
+        return await fetchSleepNights(from: windowStart)
+    }
+
+    /// Same thing from an explicit start date
+    /// the sync service uses this to rebuild just the nights that changed
+    func fetchSleepNights(from windowStart: Date) async -> [SleepNight] {
+        let samples = (try? await fetchAsleepSamples(from: windowStart)) ?? []
         return SleepNightAggregator.nights(from: samples)
     }
 
     /// Pulls the last N days of sleep data as plain values
     /// only time actually asleep survives, in-bed and awake get dropped here
     /// so the rest of the app never has to think about them
-    private func fetchAsleepSamples(daysBack: Int) async throws -> [SleepSample] {
-        guard let windowStart = windowStart(daysBack: daysBack) else {
-            return []
-        }
-
+    private func fetchAsleepSamples(from windowStart: Date) async throws -> [SleepSample] {
         let sortByStart = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
         let samples: [HKSample] = try await withCheckedThrowingContinuation { continuation in
             let query = HKSampleQuery(
@@ -114,6 +119,61 @@ final class HealthKitService {
         }
     }
 
+    /// What changed for one sample type since the last sync
+    /// the intervals say which days need recomputing, the anchor
+    /// gets saved so the next launch only asks for the delta
+    struct SampleChanges {
+        let newSampleIntervals: [DateInterval]
+        let deletedCount: Int
+        let anchorData: Data
+    }
+
+    /// Delta fetch for a quantity metric, nil anchor means first ever sync
+    func fetchMetricChanges(for kind: MetricKind, since anchorData: Data?, daysBack: Int = 90) async throws -> SampleChanges {
+        try await fetchChanges(for: kind.quantityType, since: anchorData, daysBack: daysBack)
+    }
+
+    /// Delta fetch for sleep, same bookmark idea as the metrics
+    func fetchSleepChanges(since anchorData: Data?, daysBack: Int = 90) async throws -> SampleChanges {
+        try await fetchChanges(for: HKCategoryType(.sleepAnalysis), since: anchorData, daysBack: daysBack)
+    }
+
+    /// The anchored query itself, HealthKit's "what's new since this bookmark"
+    /// returns every matching sample when the anchor is nil, only the delta after
+    /// deletions come back as bare ids with NO dates, callers just get a count
+    private func fetchChanges(for sampleType: HKSampleType, since anchorData: Data?, daysBack: Int) async throws -> SampleChanges {
+        guard let windowStart = windowStart(daysBack: daysBack) else {
+            throw HealthKitServiceError.noResult
+        }
+
+        let anchor = anchorData.flatMap {
+            try? NSKeyedUnarchiver.unarchivedObject(ofClass: HKQueryAnchor.self, from: $0)
+        }
+
+        let (samples, deleted, newAnchor): ([HKSample], [HKDeletedObject], HKQueryAnchor) =
+            try await withCheckedThrowingContinuation { continuation in
+                let query = HKAnchoredObjectQuery(
+                    type: sampleType,
+                    predicate: HKQuery.predicateForSamples(withStart: windowStart, end: nil),
+                    anchor: anchor,
+                    limit: HKObjectQueryNoLimit
+                ) { _, samples, deleted, newAnchor, error in
+                    if let samples, let newAnchor {
+                        continuation.resume(returning: (samples, deleted ?? [], newAnchor))
+                    } else {
+                        continuation.resume(throwing: error ?? HealthKitServiceError.noResult)
+                    }
+                }
+                store.execute(query)
+            }
+
+        return SampleChanges(
+            newSampleIntervals: samples.map { DateInterval(start: $0.startDate, end: $0.endDate) },
+            deletedCount: deleted.count,
+            anchorData: try NSKeyedArchiver.archivedData(withRootObject: newAnchor, requiringSecureCoding: true)
+        )
+    }
+
     /// Runs one statistics-collection query for a metric: samples bucketed
     /// into calendar days anchored at local midnight, each day collapsed to
     /// one value per the metric's aggregation rule.
@@ -121,7 +181,12 @@ final class HealthKitService {
         guard let windowStart = windowStart(daysBack: daysBack) else {
             return []
         }
+        return try await dailySeries(for: kind, from: windowStart)
+    }
 
+    /// Same query from an explicit start
+    /// the sync service recomputes changed days with this instead of the whole window
+    func dailySeries(for kind: MetricKind, from windowStart: Date) async throws -> [DailyAggregate] {
         let options: HKStatisticsOptions = kind.aggregation == .sum ? .cumulativeSum : .discreteAverage
         let query = HKStatisticsCollectionQuery(
             quantityType: kind.quantityType,

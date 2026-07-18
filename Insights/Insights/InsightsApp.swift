@@ -14,6 +14,6 @@ struct InsightsApp: App {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(for: DailyMetricRecord.self)
+        .modelContainer(for: [DailyMetricRecord.self, SleepNightRecord.self, SyncAnchorRecord.self])
     }
 }
