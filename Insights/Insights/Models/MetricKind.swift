@@ -9,6 +9,7 @@ enum MetricKind: String, CaseIterable, Identifiable {
     case hrv
     case steps
     case activeEnergy
+    case basalEnergy
     case vo2Max
     case respiratoryRate
     case wristTemperature
@@ -22,6 +23,7 @@ enum MetricKind: String, CaseIterable, Identifiable {
         case .hrv: "HRV (SDNN)"
         case .steps: "Steps"
         case .activeEnergy: "Active energy"
+        case .basalEnergy: "Resting energy"
         case .vo2Max: "VO₂ max"
         case .respiratoryRate: "Respiratory rate"
         case .wristTemperature: "Wrist temperature"
@@ -36,6 +38,7 @@ enum MetricKind: String, CaseIterable, Identifiable {
         case .hrv: HKQuantityType(.heartRateVariabilitySDNN)
         case .steps: HKQuantityType(.stepCount)
         case .activeEnergy: HKQuantityType(.activeEnergyBurned)
+        case .basalEnergy: HKQuantityType(.basalEnergyBurned)
         case .vo2Max: HKQuantityType(.vo2Max)
         case .respiratoryRate: HKQuantityType(.respiratoryRate)
         case .wristTemperature: HKQuantityType(.appleSleepingWristTemperature)
@@ -51,7 +54,7 @@ enum MetricKind: String, CaseIterable, Identifiable {
 
     var aggregation: Aggregation {
         switch self {
-        case .steps, .activeEnergy: .sum
+        case .steps, .activeEnergy, .basalEnergy: .sum
         default: .average
         }
     }
@@ -65,7 +68,7 @@ enum MetricKind: String, CaseIterable, Identifiable {
             HKUnit.secondUnit(with: .milli)
         case .steps:
             HKUnit.count()
-        case .activeEnergy:
+        case .activeEnergy, .basalEnergy:
             HKUnit.kilocalorie()
         case .vo2Max:
             HKUnit.literUnit(with: .milli)
@@ -80,7 +83,7 @@ enum MetricKind: String, CaseIterable, Identifiable {
         case .heartRate, .restingHeartRate: "bpm"
         case .hrv: "ms"
         case .steps: "steps"
-        case .activeEnergy: "kcal"
+        case .activeEnergy, .basalEnergy: "kcal"
         case .vo2Max: "ml/kg·min"
         case .respiratoryRate: "breaths/min"
         case .wristTemperature: "°C"

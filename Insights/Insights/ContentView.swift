@@ -78,6 +78,22 @@ struct ContentView: View {
                         .buttonStyle(.plain)
                     }
                     NavigationLink {
+                        TotalEnergyView()
+                    } label: {
+                        HStack {
+                            Text("Total energy")
+                            Spacer()
+                            Text("\(totalEnergyDays) days")
+                                .monospacedDigit()
+                                .foregroundStyle(totalEnergyDays == 0 ? .secondary : .primary)
+                            Image(systemName: "chevron.right")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .font(.callout)
+                    }
+                    .buttonStyle(.plain)
+                    NavigationLink {
                         SleepNightsView()
                     } label: {
                         HStack {
@@ -119,6 +135,14 @@ struct ContentView: View {
         MetricKind.allCases.map { kind in
             (metric: kind, days: metricRecords.filter { $0.metricKind == kind.rawValue }.count)
         }
+    }
+
+    /// Complete days that earned a derived total, same join the detail screen shows
+    private var totalEnergyDays: Int {
+        TotalEnergy.dailyTotals(
+            active: metricRecords.filter { $0.metricKind == MetricKind.activeEnergy.rawValue },
+            basal: metricRecords.filter { $0.metricKind == MetricKind.basalEnergy.rawValue }
+        ).filter(\.hasCompleteEnergyRecord).count
     }
 
     /// One line to eyeball against the Health app, count plus the latest night
