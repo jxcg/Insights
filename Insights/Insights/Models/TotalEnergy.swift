@@ -29,23 +29,37 @@ enum TotalEnergy {
         basal: [DailyMetricRecord],
         calendar: Calendar = .current
     ) -> [DayTotal] {
+        // get the user's median resting energy over the finished days
+        // today is excluded because it is still accumulating
         let finishedDays = basal.filter { !calendar.isDateInToday($0.date) }
-        // get the user's median resting energy over a filter
         let typicalResting = median(finishedDays.map(\.value))
-        let activeByDay = Dictionary(active.map { ($0.date, $0.value) }) { first, _ in first }
 
-        return basal
-            .map { record in
-                let dayHasEnded = !calendar.isDateInToday(record.date)
-                let restingMeetsTypicalShare = typicalResting.map {
-                    record.value >= $0 * minimumShareOfTypicalResting
-                } ?? false
-                return DayTotal(
-                    day: record.date,
-                    kilocalories: record.value + (activeByDay[record.date] ?? 0),
-                    hasCompleteEnergyRecord: dayHasEnded && restingMeetsTypicalShare)
+        // active energy looked up by day when building each total
+        var activeByDay: [Date: Double] = [:]
+        for activeRecord in active {
+            activeByDay[activeRecord.date] = activeRecord.value
+        }
+
+        // one total per resting-energy day, flagged complete only when the
+        // day has ended AND its resting number holds up against a typical day
+        var totals: [DayTotal] = []
+        for restingRecord in basal {
+            let dayHasEnded = !calendar.isDateInToday(restingRecord.date)
+
+            var restingMeetsTypicalShare = false
+            if let typicalResting {
+                restingMeetsTypicalShare =
+                    restingRecord.value >= typicalResting * minimumShareOfTypicalResting
             }
-            .sorted { $0.day < $1.day }
+
+            let activeKilocalories = activeByDay[restingRecord.date] ?? 0
+            totals.append(DayTotal(
+                day: restingRecord.date,
+                kilocalories: restingRecord.value + activeKilocalories,
+                hasCompleteEnergyRecord: dayHasEnded && restingMeetsTypicalShare))
+        }
+
+        return totals.sorted { $0.day < $1.day }
     }
 
     /// Median, not mean: the watch-off outliers being screened out must not
