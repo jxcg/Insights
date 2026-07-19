@@ -137,12 +137,12 @@ struct ContentView: View {
         }
     }
 
-    /// Days that earned a derived total, same join the detail screen shows
+    /// Complete days that earned a derived total, same join the detail screen shows
     private var totalEnergyDays: Int {
         TotalEnergy.dailyTotals(
             active: metricRecords.filter { $0.metricKind == MetricKind.activeEnergy.rawValue },
             basal: metricRecords.filter { $0.metricKind == MetricKind.basalEnergy.rawValue }
-        ).count
+        ).filter(\.hasCompleteEnergyRecord).count
     }
 
     /// One line to eyeball against the Health app, count plus the latest night
