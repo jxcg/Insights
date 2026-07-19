@@ -2,6 +2,7 @@ name: Build
 
 on:
   push:
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -17,3 +18,19 @@ jobs:
             -project Insights/Insights.xcodeproj \
             -scheme Insights \
             -destination 'generic/platform=iOS Simulator'
+
+  test:
+    needs: build
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        device: ["iPhone 17", "iPhone Air"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run tests
+        run: |
+          xcodebuild test \
+            -project Insights/Insights.xcodeproj \
+            -scheme Insights \
+            -destination "platform=iOS Simulator,name=${{ matrix.device }}"
