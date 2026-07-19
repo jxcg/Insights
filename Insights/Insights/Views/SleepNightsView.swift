@@ -1,3 +1,4 @@
+import Charts
 import SwiftUI
 import SwiftData
 
@@ -12,6 +13,9 @@ struct SleepNightsView: View {
                 Text("No cached nights.")
                     .foregroundStyle(.secondary)
             } else {
+                Section {
+                    chart
+                }
                 ForEach(nights) { record in
                     row(for: record.night)
                 }
@@ -19,6 +23,17 @@ struct SleepNightsView: View {
         }
         .navigationTitle("Sleep nights")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    /// Shape check over the same nights the table lists, one bar of hours per night
+    private var chart: some View {
+        Chart(nights) { record in
+            BarMark(
+                x: .value("Night", record.wakeDay, unit: .day),
+                y: .value("Hours asleep", record.night.asleepHours)
+            )
+        }
+        .frame(height: 160)
     }
 
     /// One night: the morning it ended, hours asleep, stage split when known
