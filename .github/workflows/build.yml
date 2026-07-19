@@ -21,8 +21,9 @@ jobs:
       - name: Select simulator
         id: simulator
         run: |
-          UDID=$(xcrun simctl list devices available -j \
-            | jq -r '[.devices[] | .[] | select(.name | test("iPhone"))][0].udid')
+          UDID=$(xcodebuild -showdestinations -project Insights/Insights.xcodeproj -scheme Insights \
+            | grep "platform:iOS Simulator" | grep "name:iPhone" | head -1 \
+            | sed -E 's/.*id:([^,]*),.*/\1/')
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
 
       - name: Run tests
