@@ -24,7 +24,7 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        device: ["iPhone 17", "iPhone Air", "iPhone 16"]
+        device: ["iPhone 17", "iPhone Air"]
     steps:
       - uses: actions/checkout@v4
 
