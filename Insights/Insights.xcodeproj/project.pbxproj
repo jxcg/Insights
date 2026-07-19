@@ -8,7 +8,18 @@
 
 /* Begin PBXFileReference section */
 		4226902730025F59007F1951 /* Insights.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Insights.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		4226904030025F5A007F1951 /* InsightsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = InsightsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXContainerItemProxy section */
+		4226904630025F5A007F1951 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4226901F30025F59007F1951 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4226902630025F59007F1951;
+			remoteInfo = Insights;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		4226902930025F59007F1951 /* Insights */ = {
@@ -16,10 +27,22 @@
 			path = Insights;
 			sourceTree = "<group>";
 		};
+		4226904130025F5A007F1951 /* InsightsTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = InsightsTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		4226902430025F59007F1951 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4226904330025F5A007F1951 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -33,6 +56,7 @@
 			isa = PBXGroup;
 			children = (
 				4226902930025F59007F1951 /* Insights */,
+				4226904130025F5A007F1951 /* InsightsTests */,
 				4226902830025F59007F1951 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +65,7 @@
 			isa = PBXGroup;
 			children = (
 				4226902730025F59007F1951 /* Insights.app */,
+				4226904030025F5A007F1951 /* InsightsTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -70,6 +95,29 @@
 			productReference = 4226902730025F59007F1951 /* Insights.app */;
 			productType = "com.apple.product-type.application";
 		};
+		4226904530025F5A007F1951 /* InsightsTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4226904A30025F5A007F1951 /* Build configuration list for PBXNativeTarget "InsightsTests" */;
+			buildPhases = (
+				4226904230025F5A007F1951 /* Sources */,
+				4226904330025F5A007F1951 /* Frameworks */,
+				4226904430025F5A007F1951 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				4226904730025F5A007F1951 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				4226904130025F5A007F1951 /* InsightsTests */,
+			);
+			name = InsightsTests;
+			packageProductDependencies = (
+			);
+			productName = InsightsTests;
+			productReference = 4226904030025F5A007F1951 /* InsightsTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -82,6 +130,10 @@
 				TargetAttributes = {
 					4226902630025F59007F1951 = {
 						CreatedOnToolsVersion = 26.6;
+					};
+					4226904530025F5A007F1951 = {
+						CreatedOnToolsVersion = 26.6;
+						TestTargetID = 4226902630025F59007F1951;
 					};
 				};
 			};
@@ -100,12 +152,20 @@
 			projectRoot = "";
 			targets = (
 				4226902630025F59007F1951 /* Insights */,
+				4226904530025F5A007F1951 /* InsightsTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		4226902530025F59007F1951 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4226904430025F5A007F1951 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -122,7 +182,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		4226904230025F5A007F1951 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		4226904730025F5A007F1951 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 4226902630025F59007F1951 /* Insights */;
+			targetProxy = 4226904630025F5A007F1951 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		4226903030025F5A007F1951 /* Debug */ = {
@@ -329,6 +404,54 @@
 			};
 			name = Release;
 		};
+		4226904830025F5A007F1951 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 589Z347LDF;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = ngjosh.InsightsTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Insights.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Insights";
+			};
+			name = Debug;
+		};
+		4226904930025F5A007F1951 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 589Z347LDF;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = ngjosh.InsightsTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Insights.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Insights";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -346,6 +469,15 @@
 			buildConfigurations = (
 				4226903330025F5A007F1951 /* Debug */,
 				4226903430025F5A007F1951 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		4226904A30025F5A007F1951 /* Build configuration list for PBXNativeTarget "InsightsTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4226904830025F5A007F1951 /* Debug */,
+				4226904930025F5A007F1951 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
