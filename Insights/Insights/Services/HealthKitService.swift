@@ -19,6 +19,7 @@ final class HealthKitService {
         HKQuantityType(.heartRateVariabilitySDNN),
         HKQuantityType(.stepCount),
         HKQuantityType(.activeEnergyBurned),
+        HKQuantityType(.basalEnergyBurned),
         HKQuantityType(.vo2Max),
         HKQuantityType(.respiratoryRate),
         HKQuantityType(.appleSleepingWristTemperature),
