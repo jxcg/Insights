@@ -11,15 +11,13 @@ enum BaselineBuilder {
         let sixtyDay: MetricBaseline?
     }
 
-    /// Quantity windows end yesterday: today is still accumulating and would
-    /// drag sums down. Sleep windows end today: a night is complete once woken,
-    /// and it is keyed to the morning it ended.
-    static func build(
+    /// The cached records as plain per-metric day series: the shared starting
+    /// point for baselines and every detector that judges values against them.
+    static func dailySeries(
         metrics: [DailyMetricRecord],
         nights: [SleepNightRecord],
-        asOf now: Date = .now,
-        calendar: Calendar = .current
-    ) -> [AnalyticMetric: RollingBaselines] {
+        asOf now: Date = .now
+    ) -> [AnalyticMetric: [DatedValue]] {
         var seriesByMetric: [AnalyticMetric: [DatedValue]] = [:]
 
         for record in metrics {
@@ -48,6 +46,19 @@ enum BaselineBuilder {
                     .append(DatedValue(day: record.wakeDay, value: rem / 3600))
             }
         }
+        return seriesByMetric
+    }
+
+    /// Quantity windows end yesterday: today is still accumulating and would
+    /// drag sums down. Sleep windows end today: a night is complete once woken,
+    /// and it is keyed to the morning it ended.
+    static func build(
+        metrics: [DailyMetricRecord],
+        nights: [SleepNightRecord],
+        asOf now: Date = .now,
+        calendar: Calendar = .current
+    ) -> [AnalyticMetric: RollingBaselines] {
+        let seriesByMetric = dailySeries(metrics: metrics, nights: nights, asOf: now)
 
         let today = calendar.startOfDay(for: now)
         guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today) else {
