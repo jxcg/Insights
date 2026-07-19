@@ -78,15 +78,6 @@ struct ContentView: View {
                         .buttonStyle(.plain)
                     }
                     NavigationLink {
-<<<<<<< Updated upstream
-                        SleepNightsView()
-                    } label: {
-                        HStack {
-                            Text("Sleep nights")
-                            Spacer()
-                            Text(sleepSummary)
-                                .monospacedDigit()
-=======
                         TotalEnergyView()
                     } label: {
                         HStack {
@@ -95,22 +86,26 @@ struct ContentView: View {
                             Text("\(totalEnergyDays) days")
                                 .monospacedDigit()
                                 .foregroundStyle(totalEnergyDays == 0 ? .secondary : .primary)
->>>>>>> Stashed changes
                             Image(systemName: "chevron.right")
                                 .font(.caption2)
                                 .foregroundStyle(.tertiary)
                         }
                         .font(.callout)
-<<<<<<< Updated upstream
-=======
                     }
                     .buttonStyle(.plain)
-                    HStack {
-                        Text("Sleep nights")
-                        Spacer()
-                        Text(sleepSummary)
-                            .monospacedDigit()
->>>>>>> Stashed changes
+                    NavigationLink {
+                        SleepNightsView()
+                    } label: {
+                        HStack {
+                            Text("Sleep nights")
+                            Spacer()
+                            Text(sleepSummary)
+                                .monospacedDigit()
+                            Image(systemName: "chevron.right")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .font(.callout)
                     }
                     .buttonStyle(.plain)
                 }
