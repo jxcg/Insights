@@ -80,6 +80,7 @@ enum AnomalyDetector {
         return Finding(
             type: .anomaly,
             metric: metric,
+            drivingMetric: nil,
             magnitude: abs(zScore),
             currentValue: currentValue,
             baselineValue: baseline.mean,

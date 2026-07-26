@@ -31,7 +31,12 @@ struct Finding {
     }
 
     let type: FindingType
+    /// The metric the finding is about. For a correlation this is the outcome —
+    /// the series the user cares about the state of.
     let metric: AnalyticMetric
+    /// For a correlation, the other metric: the one whose movement appears to
+    /// lead the outcome. nil for findings about a single series.
+    let drivingMetric: AnalyticMetric?
 
     /// Effect size in the finding's own terms: baseline SDs for an anomaly,
     /// change over the window for a trend, strength for a correlation.

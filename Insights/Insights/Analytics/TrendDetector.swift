@@ -162,6 +162,7 @@ enum TrendDetector {
         return Finding(
             type: .trend,
             metric: metric,
+            drivingMetric: nil,
             magnitude: abs(trend.relativeChange),
             currentValue: trend.latestValue,
             baselineValue: trend.mean,
