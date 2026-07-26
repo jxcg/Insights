@@ -1,8 +1,8 @@
 import Foundation
 import HealthKit
 
-/// A quantity metric the app reads from HealthKit, with everything needed to
-/// query it and label its values.
+/// One number the app reads from Apple Health, and everything needed to ask for
+/// it and label it. Adding a metric to the app starts here.
 enum MetricKind: String, CaseIterable, Identifiable {
     case heartRate
     case restingHeartRate
@@ -30,7 +30,7 @@ enum MetricKind: String, CaseIterable, Identifiable {
         }
     }
 
-    /// The HealthKit quantity type backing this metric.
+    /// The Apple Health type this metric comes from.
     var quantityType: HKQuantityType {
         switch self {
         case .heartRate: HKQuantityType(.heartRate)
@@ -45,8 +45,8 @@ enum MetricKind: String, CaseIterable, Identifiable {
         }
     }
 
-    /// How one day's samples collapse into a single value: instantaneous
-    /// readings average; countable quantities sum.
+    /// How a day's samples collapse into one number. Things you count add up;
+    /// things you measure at a moment average out.
     enum Aggregation {
         case average
         case sum
@@ -59,7 +59,7 @@ enum MetricKind: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Unit daily values are reported in.
+    /// The unit daily values come back in.
     var unit: HKUnit {
         switch self {
         case .heartRate, .restingHeartRate, .respiratoryRate:

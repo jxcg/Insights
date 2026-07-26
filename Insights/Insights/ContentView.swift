@@ -8,15 +8,19 @@
 import SwiftUI
 import SwiftData
 
-/// Verification screen over the cache
-/// on launch it shows whatever SwiftData has, no HealthKit calls at all
-/// the sync button is the ONLY thing that talks to HealthKit
+/// A window onto the cache, built to prove the data underneath is right before
+/// any of it gets interpreted. On launch it shows whatever is already stored
+/// and touches Apple Health not at all — the sync button is the only thing
+/// that does.
+///
+/// This is scaffolding. The real Today screen replaces it once findings exist
+/// to show.
 struct ContentView: View {
     private let healthKit = HealthKitService()
 
     @Environment(\.modelContext) private var modelContext
 
-    /// Live views of the cache, they refresh themselves when a sync writes
+    /// Live views of the cache — they redraw themselves whenever a sync writes.
     @Query private var metricRecords: [DailyMetricRecord]
     @Query(sort: \SleepNightRecord.wakeDay) private var nightRecords: [SleepNightRecord]
     @Query private var anchors: [SyncAnchorRecord]
@@ -30,8 +34,8 @@ struct ContentView: View {
         }
     }
 
-    /// The summary screen itself, header plus sync plus cache overview
-    /// each metric row links through to its raw day by day table
+    /// The screen itself: header, sync button, and what the cache holds. Each
+    /// row links through to that metric's raw day-by-day table.
     private var dashboard: some View {
         VStack(spacing: 16) {
             HStack {
@@ -115,8 +119,9 @@ struct ContentView: View {
         .padding()
     }
 
-    /// What the status line says, syncing beats errors beats cache age
-    /// a last-synced time surviving relaunch is the cache working
+    /// What the status line says. Syncing wins over errors, errors over the
+    /// cache's age. A last-synced time surviving a relaunch means the cache
+    /// is doing its job.
     private var status: String {
         if isSyncing {
             return "Syncing…"
@@ -130,14 +135,15 @@ struct ContentView: View {
         return "Not connected"
     }
 
-    /// Days with data per metric, straight from the cache
+    /// How many days each metric has, straight from the cache.
     private var dayCounts: [(metric: MetricKind, days: Int)] {
         MetricKind.allCases.map { kind in
             (metric: kind, days: metricRecords.filter { $0.metricKind == kind.rawValue }.count)
         }
     }
 
-    /// Complete days that earned a derived total, same join the detail screen shows
+    /// Days complete enough to have earned a total, the same join the detail
+    /// screen shows.
     private var totalEnergyDays: Int {
         TotalEnergy.dailyTotals(
             active: metricRecords.filter { $0.metricKind == MetricKind.activeEnergy.rawValue },
@@ -145,7 +151,8 @@ struct ContentView: View {
         ).filter(\.hasCompleteEnergyRecord).count
     }
 
-    /// One line to eyeball against the Health app, count plus the latest night
+    /// One line to eyeball against the Health app: how many nights, plus the
+    /// most recent one.
     private var sleepSummary: String {
         guard let latest = nightRecords.last?.night else {
             return "Not Available"

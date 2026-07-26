@@ -2,12 +2,12 @@ import Charts
 import SwiftUI
 import SwiftData
 
-/// Derived total energy (active + resting) per day, newest first
-/// nothing on this screen is stored, every row is computed from the
-/// two cached energy series so it can be checked against the Health app
+/// Total energy per day, newest first. Nothing here is stored — every row is
+/// added up on the spot from the two cached energy series, so it can be checked
+/// straight against the Health app.
 struct TotalEnergyView: View {
-    /// Complete hides in-progress and under-recorded days; all shows them
-    /// dimmed, so the exclusion rule itself can be checked against reality
+    /// Complete days hides the in-progress and under-recorded ones; all days
+    /// shows them dimmed, so the exclusion rule can itself be eyeballed.
     enum Scope: String, CaseIterable, Identifiable {
         case completeDays = "Complete days"
         case allDays = "All days"
@@ -24,7 +24,8 @@ struct TotalEnergyView: View {
             filter: #Predicate<DailyMetricRecord> { energyKeys.contains($0.metricKind) })
     }
 
-    /// The join itself, every day flagged, oldest first for the chart
+    /// The join itself: every day flagged, oldest first so the chart reads left
+    /// to right.
     private var totals: [TotalEnergy.DayTotal] {
         TotalEnergy.dailyTotals(
             active: energyRecords.filter { $0.metricKind == MetricKind.activeEnergy.rawValue },

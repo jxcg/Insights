@@ -1,47 +1,47 @@
 import Foundation
 
-/// Derives total daily energy from the two cached series: active + resting.
-/// HealthKit has no total-energy type, and storing the sum would be a cache
-/// of a cache that can drift — so it's computed wherever it's displayed.
+/// Total daily energy, worked out on the spot from the two cached series:
+/// active plus resting. Apple Health has no total-energy type, and storing the
+/// sum would be a cache of a cache that can drift out of step — so it is
+/// computed wherever it is shown instead.
 enum TotalEnergy {
     struct DayTotal: Identifiable {
         let day: Date
         let kilocalories: Double
-        /// False while the day is still in progress, or when its resting
-        /// number fell short of a typical day — the total exists but reads
-        /// low. Analysis should only ever trust fully recorded days.
+        /// False while a day is still running, or when its resting number came
+        /// in well under a typical day. The total still exists, it just reads
+        /// low — analysis should only trust fully recorded days.
         let hasCompleteEnergyRecord: Bool
         var id: Date { day }
     }
 
-    /// HealthKit has no flag saying "the watch was off", so an incomplete
-    /// day has to be inferred: resting burn is relatively stable, so a day
-    /// recording under this share of the person's median is treated as likely
-    /// missing hours of data rather than a meaningful physiological change.
+    /// Apple Health has no flag for "the watch was off", so a gap has to be
+    /// inferred. Resting burn is fairly steady day to day, so a day coming in
+    /// under this share of the user's own median almost certainly lost hours of
+    /// recording rather than the body genuinely doing less.
     static let minimumShareOfTypicalResting = 0.8
 
-    /// Joins the two series by day, oldest first, every day flagged rather
-    /// than filtered — callers choose whether incomplete days are shown.
-    /// Missing active on a day the watch was worn counts as zero movement,
-    /// not missing data.
+    /// Joins the two series by day, oldest first. Every day is flagged rather
+    /// than dropped, so callers decide whether to show the incomplete ones.
+    /// No active energy on a day the watch was worn means no movement, which is
+    /// not the same as missing data.
     static func dailyTotals(
         active: [DailyMetricRecord],
         basal: [DailyMetricRecord],
         calendar: Calendar = .current
     ) -> [DayTotal] {
-        // get the user's median resting energy over the finished days
-        // today is excluded because it is still accumulating
+        // what a typical resting day looks like for this user, today left out
+        // because it is still adding to itself
         let finishedDays = basal.filter { !calendar.isDateInToday($0.date) }
         let typicalResting = median(finishedDays.map(\.value))
 
-        // active energy looked up by day when building each total
         var activeByDay: [Date: Double] = [:]
         for activeRecord in active {
             activeByDay[activeRecord.date] = activeRecord.value
         }
 
-        // one total per resting-energy day, flagged complete only when the
-        // day has ended AND its resting number holds up against a typical day
+        // one total per resting-energy day, counted complete only when the day
+        // has ended and its resting number holds up against a typical one
         var totals: [DayTotal] = []
         for restingRecord in basal {
             let dayHasEnded = !calendar.isDateInToday(restingRecord.date)
@@ -62,8 +62,8 @@ enum TotalEnergy {
         return totals.sorted { $0.day < $1.day }
     }
 
-    /// Median, not mean: the watch-off outliers being screened out must not
-    /// drag down the yardstick they're screened against.
+    /// Median rather than mean, deliberately: the watch-off days being screened
+    /// out must not drag down the yardstick they are screened against.
     private static func median(_ values: [Double]) -> Double? {
         guard !values.isEmpty else {
             return nil

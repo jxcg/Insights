@@ -1,41 +1,42 @@
 import Foundation
 
-/// Fourth stage of the engine, and the first to relate two metrics rather than
-/// judging one against itself: it tests a fixed list of hypotheses across day
-/// pairs and reports only the ones that hold up in this user's own history.
+/// Fourth stage on the path set out in InsightsApp, and the first to look at
+/// two metrics at once. Earlier stages ask what a number did; this one asks
+/// what tends to move it, checking a short list of ideas against the user's
+/// own history and keeping only the ones that actually hold.
 enum CorrelationDetector {
-    /// How strong a Pearson r must be before a pairing is worth reporting.
-    /// The single sensitivity knob.
+    /// How tightly two metrics must move together, as a Pearson r, before the
+    /// link is worth reporting. The one sensitivity knob.
     static let correlationThreshold = 0.4
 
-    /// Fewest day pairs a reported correlation may rest on. Below this a strong
-    /// r is mostly luck, so the pairing stays silent however tight it looks.
+    /// Fewest day pairs a reported link may rest on. Below this even a tight
+    /// r is mostly luck, so the pairing stays quiet however good it looks.
     static let minimumPairCount = 14
 
     /// Days of history pairs are drawn from.
     static let windowDays = 90
 
-    /// One relationship the engine looks for. Hypotheses are written down rather
-    /// than generated from every metric pairing: testing everything against
-    /// everything would turn up coincidences at this threshold, and a named
-    /// hypothesis can be phrased for the user in a way a generated one cannot.
+    /// One relationship worth checking. These are written by hand rather than
+    /// generated from every possible pairing: testing everything against
+    /// everything would surface coincidences at this threshold, and a named
+    /// idea can be put into words a generated one cannot.
     struct Hypothesis {
         /// The metric whose movement may lead the outcome.
         let driver: AnalyticMetric
         /// The metric whose state the user cares about.
         let outcome: AnalyticMetric
-        /// Days between a driver reading and the outcome day it pairs with.
-        /// Sleep series are keyed to the morning woken, so a night's sleep and
-        /// the day it leads into already share a day — those pairings use 0,
-        /// and only a genuine overnight gap needs 1.
+        /// Days between a driver reading and the outcome it pairs with. Sleep
+        /// is filed under the morning it ended, so a night and the day it leads
+        /// into already share a date — those use 0, and only a real overnight
+        /// gap needs 1.
         let lagDays: Int
-        /// The driver being higher, worded to read after both "on days with"
-        /// and "the day after".
+        /// The driver being higher, worded so it reads after both "on days
+        /// with" and "the day after".
         let higherDriverPhrase: String
     }
 
-    /// The relationships worth looking for. Activity stands in for training
-    /// load until workouts are read from HealthKit.
+    /// The relationships worth looking for. Active energy stands in for
+    /// training load, since workouts are not read from Apple Health yet.
     static let hypotheses: [Hypothesis] = [
         Hypothesis(
             driver: .sleepDuration,
@@ -54,9 +55,8 @@ enum CorrelationDetector {
             higherDriverPhrase: "a higher resting heart rate"),
     ]
 
-    /// Tests every hypothesis against the cached history and returns a Finding
-    /// for each one that clears both minimums. A hypothesis whose metrics have
-    /// too little overlapping history simply produces nothing.
+    /// Checks every hypothesis and returns a Finding for each that clears both
+    /// minimums. One whose two metrics barely overlap simply produces nothing.
     static func detect(
         metrics: [DailyMetricRecord],
         nights: [SleepNightRecord],
@@ -89,9 +89,8 @@ enum CorrelationDetector {
         }
     }
 
-    /// Pairs one hypothesis' two series and reports it if the correlation is
-    /// both strong enough and built on enough days. nil whenever either
-    /// minimum fails, or either side of the pairs never varies.
+    /// Pairs up one hypothesis' two series and reports it only if the link is
+    /// both tight enough and built on enough days.
     private static func finding(
         for hypothesis: Hypothesis,
         driverSeries: [DatedValue],
@@ -121,11 +120,10 @@ enum CorrelationDetector {
         let outcomeValue: Double
     }
 
-    /// Walks the outcome's days inside the window and pairs each with the driver
-    /// value `lagDays` earlier, keeping only days where both sides have a
-    /// reading. The window is anchored on the outcome because the outcome is
-    /// what is being explained, and its own completeness rule decides how
-    /// recent a day may be — a driver day just before the window still counts.
+    /// Walks the outcome's days and pairs each with the driver reading from
+    /// `lagDays` earlier, keeping only days where both sides have data. The
+    /// window hangs off the outcome, since the outcome is the thing being
+    /// explained — a driver day just before the window still counts.
     private static func dayPairs(
         for hypothesis: Hypothesis,
         driverSeries: [DatedValue],
@@ -133,8 +131,8 @@ enum CorrelationDetector {
         asOf now: Date,
         calendar: Calendar
     ) -> [DayPair] {
-        guard let windowEnd = latestCompleteDay(
-            for: hypothesis.outcome, asOf: now, calendar: calendar),
+        guard let windowEnd = hypothesis.outcome.latestCompleteDay(
+            asOf: now, calendar: calendar),
               let windowStart = calendar.date(
                 byAdding: .day, value: -(windowDays - 1), to: windowEnd) else {
             return []
@@ -161,26 +159,10 @@ enum CorrelationDetector {
         return pairs
     }
 
-    /// The most recent day this metric can be judged on: yesterday for
-    /// quantities, since today is still accumulating, and today for sleep,
-    /// which is keyed to the morning woken.
-    private static func latestCompleteDay(
-        for metric: AnalyticMetric,
-        asOf now: Date,
-        calendar: Calendar
-    ) -> Date? {
-        let today = calendar.startOfDay(for: now)
-        switch metric {
-        case .quantity:
-            return calendar.date(byAdding: .day, value: -1, to: today)
-        case .sleepDuration, .deepSleepDuration, .remSleepDuration:
-            return today
-        }
-    }
-
-    /// Pearson r over the pairs: covariance divided by the two spreads, giving a
-    /// unitless -1…1 that compares metrics in different units. nil when either
-    /// side is flat, since a series that never moves cannot move with anything.
+    /// Pearson r over the pairs: how much the two move together, divided by how
+    /// much each moves on its own. The units cancel, so anything from -1 to 1
+    /// is comparable. nil when either side is flat — a series that never moves
+    /// cannot move with anything.
     private static func pearsonCorrelation(of pairs: [DayPair]) -> Double? {
         let count = Double(pairs.count)
         guard count >= 2 else { return nil }
@@ -203,9 +185,8 @@ enum CorrelationDetector {
         return crossDeviation / (driverVariation * outcomeVariation).squareRoot()
     }
 
-    /// Turns a qualifying correlation into a narratable Finding. Direction is
-    /// how the outcome responds when the driver rises, so a negative r reads as
-    /// falling.
+    /// Packs a surviving link into a Finding. Direction is what the outcome
+    /// does when the driver goes up, so a negative r reads as falling.
     private static func makeFinding(
         for hypothesis: Hypothesis,
         pairs: [DayPair],
@@ -224,8 +205,8 @@ enum CorrelationDetector {
             metric: hypothesis.outcome,
             drivingMetric: hypothesis.driver,
             magnitude: abs(correlation),
-            // a correlation has no single judged value, so these describe the
-            // outcome across the paired days rather than one day's reading
+            // a link has no single day under judgement, so these describe the
+            // outcome across all the paired days instead
             currentValue: latestOutcomeValue ?? meanOutcomeValue,
             baselineValue: meanOutcomeValue,
             windowDays: windowDays,
@@ -240,8 +221,8 @@ enum CorrelationDetector {
             plainStatement: "\(outcomeName) tends to be \(higherOrLower) \(whenPhrase).")
     }
 
-    /// How the pairing's timing reads in a sentence, so a same-day relationship
-    /// is never described as if one day followed the other.
+    /// How the timing reads in a sentence, so a same-day link is never worded
+    /// as if one day followed the other.
     private static func lagPhrase(forLagDays lagDays: Int) -> String {
         switch lagDays {
         case 0: "on days with"
@@ -250,8 +231,8 @@ enum CorrelationDetector {
         }
     }
 
-    /// Correlations are reported to two decimals — a third would imply more
-    /// precision than a few dozen day pairs support.
+    /// Two decimals only — a third would claim more precision than a few dozen
+    /// day pairs can support.
     private static func formatted(_ correlation: Double) -> String {
         String(format: "%.2f", correlation)
     }

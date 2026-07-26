@@ -1,11 +1,11 @@
 import Foundation
 
-/// One chunk of sleep from HealthKit as plain values
-/// the service fetches these, the aggregator turns them into nights
-/// in-bed and awake time NEVER makes it this far
+/// One chunk of sleep from Apple Health, as plain values. The service fetches
+/// these and the aggregator turns them into nights. Time in bed and time awake
+/// never make it this far.
 struct SleepSample {
-    /// What kind of sleep, watches give core/deep/rem
-    /// older data may just say unspecified
+    /// Which kind of sleep. A watch reports core, deep, or REM; older data may
+    /// only say "asleep".
     enum Stage {
         case unspecified
         case core

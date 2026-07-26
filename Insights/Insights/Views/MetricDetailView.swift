@@ -2,8 +2,10 @@ import Charts
 import SwiftUI
 import SwiftData
 
-/// Raw table of one metric's cached daily values, newest first
-/// exists so the numbers can be checked line by line against the Health app
+/// One metric's cached days laid out raw, newest first. It exists so the
+/// numbers can be checked line by line against the Health app — if the engine
+/// ever says something surprising, this is where you find out whether the data
+/// or the maths was at fault.
 struct MetricDetailView: View {
     let kind: MetricKind
 
@@ -43,8 +45,8 @@ struct MetricDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    /// Shape check over the same days the table lists
-    /// bars for summed metrics, a line for averaged ones
+    /// A shape check over the same days the table lists. Bars for metrics that
+    /// add up, a line for ones that average.
     private var chart: some View {
         Chart(records) { record in
             if kind.aggregation == .sum {
@@ -59,12 +61,13 @@ struct MetricDetailView: View {
                 )
             }
         }
-        // averaged metrics sit far from zero, temperature would plot as a flat line
+        // averaged metrics sit nowhere near zero — forcing it in would flatten
+        // wrist temperature into a straight line
         .chartYScale(domain: .automatic(includesZero: kind.aggregation == .sum))
         .frame(height: 160)
     }
 
-    /// Summed metrics read as whole numbers, averaged ones keep a decimal
+    /// Counted metrics read as whole numbers; measured ones keep a decimal.
     private func formattedValue(_ value: Double) -> String {
         kind.aggregation == .sum
             ? String(format: "%.0f", value)

@@ -1,26 +1,23 @@
 import Foundation
 
-/// Third stage of the engine: fits a straight line through each metric's recent
-/// history and flags the ones drifting far enough to matter, as sustained-trend
-/// Findings. Where the anomaly stage judges a single latest day against its
-/// spread, this stage judges the direction of many days together.
+/// Third stage on the path set out in InsightsApp, and the one that answers
+/// "where is this heading?". The anomaly stage looks at a single day; this one
+/// draws a line through many and reports the ones genuinely drifting.
 enum TrendDetector {
-    /// Trailing windows a trend is looked for over, in days. Each is a horizon:
-    /// a fast recent drift shows over 7 days, a slow one only over 90.
+    /// The spans a drift is looked for over. Each catches a different pace — a
+    /// fast slide shows up in 7 days, a slow one only over 90.
     static let windowDaysOptions = [7, 21, 90]
 
-    /// Modelled change across a window, as a fraction of the window's mean, that
-    /// a metric must reach to count as trending. The single sensitivity knob.
+    /// How much a metric must move across a window, as a fraction of that
+    /// window's average, before it counts as a trend. The one sensitivity knob.
     static let relativeChangeThreshold = 0.05
 
-    /// How populated a window must be for its span to fairly describe the data —
-    /// three points scattered across 90 days are not a 90-day trend. Confidence
-    /// still scales with the exact coverage above this floor.
+    /// How much of a window needs actual readings before its span is honest.
+    /// Three points scattered across 90 days are not a 90-day trend.
     static let minimumCoverage = 0.5
 
-    /// Fits each metric's recent values and emits one Finding per metric that is
-    /// drifting past the threshold. Quantity windows end yesterday (today is
-    /// still accumulating); sleep windows end today, keyed to the morning woken.
+    /// One Finding per metric that is drifting past the threshold. Each metric
+    /// is measured up to its own last complete day.
     static func detect(
         metrics: [DailyMetricRecord],
         nights: [SleepNightRecord],
@@ -30,19 +27,10 @@ enum TrendDetector {
         let seriesByMetric = BaselineBuilder.dailySeries(
             metrics: metrics, nights: nights, asOf: now)
 
-        let today = calendar.startOfDay(for: now)
-        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today) else {
-            return []
-        }
-
         var findings: [Finding] = []
         for (metric, series) in seriesByMetric {
-            let windowEnd: Date
-            switch metric {
-            case .quantity:
-                windowEnd = yesterday
-            case .sleepDuration, .deepSleepDuration, .remSleepDuration:
-                windowEnd = today
+            guard let windowEnd = metric.latestCompleteDay(asOf: now, calendar: calendar) else {
+                continue
             }
             if let finding = finding(for: metric, in: series, windowEnd: windowEnd, calendar: calendar) {
                 findings.append(finding)
@@ -52,9 +40,9 @@ enum TrendDetector {
         return findings.sorted { $0.metric.displayName < $1.metric.displayName }
     }
 
-    /// The most sustained trend for one metric: the longest window that both
-    /// holds enough data and whose fitted line clears the threshold. nil when no
-    /// window qualifies — a flat, noisy, or too-sparse series stays silent.
+    /// The most sustained drift one metric shows: the longest window that has
+    /// enough data and moves enough to matter. A flat, noisy, or thinly
+    /// recorded series produces nothing.
     private static func finding(
         for metric: AnalyticMetric,
         in series: [DatedValue],
@@ -78,10 +66,11 @@ enum TrendDetector {
         return nil
     }
 
-    /// The straight-line fit over one window, reduced to what a Finding needs.
+    /// The fitted line over one window, boiled down to what a Finding needs.
     private struct Trend {
-        /// Modelled change from the window's first day to its last, as a signed
-        /// fraction of the window mean — the quantity the threshold is applied to.
+        /// How far the line climbs or falls across the whole window, as a
+        /// signed fraction of the window's average. This is what gets compared
+        /// against the threshold.
         let relativeChange: Double
         let mean: Double
         let latestValue: Double
@@ -89,9 +78,9 @@ enum TrendDetector {
         let coverage: Double
     }
 
-    /// Ordinary-least-squares line through the window's points, expressed as the
-    /// change it models across the full window relative to the window mean. x is
-    /// the day offset from the window start, so the slope is a per-day rate.
+    /// Draws the best-fit straight line through a window's points and reports
+    /// how far it travels end to end. x counts days from the window's start, so
+    /// the slope comes out as a per-day rate.
     private static func fitTrend(
         over series: [DatedValue],
         windowDays: Int,
@@ -126,15 +115,15 @@ enum TrendDetector {
             xVariance += (point.x - meanX) * (point.x - meanX)
         }
 
-        // every reading on one day gives no horizontal spread, and a zero mean
-        // has no scale to be relative to — neither yields a defensible slope
+        // every reading landing on one day gives nothing to slope across, and a
+        // zero average gives nothing to be a percentage of
         guard xVariance > 0, meanY != 0 else { return nil }
 
         let slopePerDay = crossDeviation / xVariance
         let modelledChange = slopePerDay * Double(windowDays - 1)
 
-        // max(by:) picks the point with the largest day offset — the latest
-        // reading — for the Finding's current value; guarded non-nil by count
+        // largest day offset is the most recent reading, which is the value the
+        // Finding quotes as "now"
         guard let latestValue = points.max(by: { $0.x < $1.x })?.y else {
             return nil
         }
@@ -146,8 +135,8 @@ enum TrendDetector {
             coverage: count / Double(windowDays))
     }
 
-    /// Turns a qualifying fit into a ready-to-narrate Finding: direction from the
-    /// slope's sign, tone from what a lasting drift means for this metric.
+    /// Packs a qualifying drift into a Finding: which way from the slope's
+    /// sign, how it should land from what a lasting drift means for this metric.
     private static func makeFinding(
         metric: AnalyticMetric,
         windowDays: Int,
@@ -157,7 +146,6 @@ enum TrendDetector {
         let percent = Int((abs(trend.relativeChange) * 100).rounded())
         let movement = direction == .rising ? "risen" : "fallen"
         let higherOrLower = direction == .rising ? "higher" : "lower"
-        let unit = metric.unitLabel
 
         return Finding(
             type: .trend,
@@ -171,15 +159,15 @@ enum TrendDetector {
             direction: direction,
             tone: tone(for: metric, direction: direction),
             meaning: "\(metric.displayName) has \(movement) about \(percent)% over the past "
-                + "\(windowDays) days, now around \(formatted(trend.latestValue)) \(unit) "
-                + "against a \(windowDays)-day average of \(formatted(trend.mean)) \(unit).",
+                + "\(windowDays) days, now around \(metric.formattedWithUnit(trend.latestValue)) "
+                + "against a \(windowDays)-day average of \(metric.formattedWithUnit(trend.mean)).",
             plainStatement: "\(metric.displayName) has been trending \(direction == .rising ? "up" : "down") "
                 + "over the past \(windowDays) days, about \(percent)% \(higherOrLower).")
     }
 
-    /// How a sustained drift should land, per metric. Mirrors the anomaly stage,
-    /// except a lasting fall in activity earns a caution where a single low day
-    /// would not — a trend carries more weight than one odd day.
+    /// Whether a drift is good news, bad news, or just news. Almost the same
+    /// table as the anomaly stage, with one deliberate difference: activity
+    /// sliding for weeks earns a caution where a single quiet day does not.
     private static func tone(for metric: AnalyticMetric, direction: Finding.Direction) -> Finding.Tone {
         switch metric {
         case .quantity(let kind):
@@ -196,13 +184,5 @@ enum TrendDetector {
         case .sleepDuration, .deepSleepDuration, .remSleepDuration:
             return direction == .falling ? .cautionary : .neutral
         }
-    }
-
-    /// Copy shows whole numbers plainly and everything else to one decimal.
-    private static func formatted(_ value: Double) -> String {
-        if value == value.rounded() {
-            return String(Int(value))
-        }
-        return String(format: "%.1f", value)
     }
 }

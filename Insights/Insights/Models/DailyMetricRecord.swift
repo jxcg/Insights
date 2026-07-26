@@ -1,7 +1,9 @@
 import Foundation
 import SwiftData
 
-/// One cached value for one metric on one day (e.g. resting HR on a given date).
+/// One cached number: one metric, on one day. Resting heart rate last Tuesday.
+/// The cache is thousands of these, and everything the engine says traces back
+/// to them.
 @Model
 final class DailyMetricRecord {
     var date: Date
