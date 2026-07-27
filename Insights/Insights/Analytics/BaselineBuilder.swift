@@ -1,18 +1,19 @@
 import Foundation
 
-/// First step whenever the engine runs: turns the cached records into rolling
-/// 30- and 60-day baselines for every metric that has data.
+/// Where every engine run begins. The cache holds records in the shape the
+/// sync wrote them; the detectors want one tidy series per metric. This turns
+/// the first into the second, and works out what "usual" looks like.
 enum BaselineBuilder {
-    /// The two horizons every current value gets judged against. Either can be
-    /// nil when its window holds no data — a metric with no data at all is
-    /// absent from the result entirely.
+    /// A metric's usual range read over two horizons at once, so a value can be
+    /// weighed against both the recent past and a longer one. Either is nil
+    /// when its window holds no data.
     struct RollingBaselines {
         let thirtyDay: MetricBaseline?
         let sixtyDay: MetricBaseline?
     }
 
-    /// The cached records as plain per-metric day series: the shared starting
-    /// point for baselines and every detector that judges values against them.
+    /// The cache flattened into one day-by-day series per metric. Every
+    /// detector starts here, so they all judge the same numbers.
     static func dailySeries(
         metrics: [DailyMetricRecord],
         nights: [SleepNightRecord],
@@ -28,9 +29,9 @@ enum BaselineBuilder {
                 .append(DatedValue(day: record.date, value: record.value))
         }
 
-        // durations cached in seconds, analysed in hours
-        // a night only counts once the user has been awake past the session
-        // gap — sooner, and more sleep could still be glued onto it
+        // sleep is cached in seconds but analysed in hours, and a night only
+        // counts once the user has stayed awake past the session gap — sooner,
+        // and more sleep could still be glued onto it
         for record in nights {
             guard now.timeIntervalSince(record.end) >= SleepNightAggregator.sessionGap else {
                 continue
@@ -49,9 +50,9 @@ enum BaselineBuilder {
         return seriesByMetric
     }
 
-    /// Quantity windows end yesterday: today is still accumulating and would
-    /// drag sums down. Sleep windows end today: a night is complete once woken,
-    /// and it is keyed to the morning it ended.
+    /// Both baselines for every metric that has any data at all. Each window
+    /// ends on the metric's last complete day, so a half-finished today can
+    /// never drag the usual range down with it.
     static func build(
         metrics: [DailyMetricRecord],
         nights: [SleepNightRecord],
@@ -60,19 +61,10 @@ enum BaselineBuilder {
     ) -> [AnalyticMetric: RollingBaselines] {
         let seriesByMetric = dailySeries(metrics: metrics, nights: nights, asOf: now)
 
-        let today = calendar.startOfDay(for: now)
-        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today) else {
-            return [:]
-        }
-
         var baselines: [AnalyticMetric: RollingBaselines] = [:]
         for (metric, series) in seriesByMetric {
-            let windowEnd: Date
-            switch metric {
-            case .quantity:
-                windowEnd = yesterday
-            case .sleepDuration, .deepSleepDuration, .remSleepDuration:
-                windowEnd = today
+            guard let windowEnd = metric.latestCompleteDay(asOf: now, calendar: calendar) else {
+                continue
             }
 
             let thirtyDay = MetricBaseline.compute(

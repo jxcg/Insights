@@ -1,15 +1,15 @@
 import Foundation
 import SwiftData
 
-/// HealthKit's bookmark for one sample type, saved between launches
-/// an anchor means "you've seen everything up to here"
-/// no anchor for a type means we've never synced it, so do the full fetch
+/// Apple Health's bookmark for one sample type, kept between launches. Having
+/// one means "you have seen everything up to here". Having none means we have
+/// never synced that type, so the next sync fetches the lot.
 @Model
 final class SyncAnchorRecord {
-    /// Which sample type this bookmark belongs to, e.g. "heartRate" or "sleep"
-    var typeKey: String // heartRate, sleep
+    /// Which sample type this bookmark belongs to — "heartRate", "sleep".
+    var typeKey: String
 
-    /// The HKQueryAnchor archived to bytes, SwiftData can't store it directly
+    /// The anchor packed into bytes, since SwiftData cannot store it directly.
     var anchorData: Data
 
     var lastSynced: Date

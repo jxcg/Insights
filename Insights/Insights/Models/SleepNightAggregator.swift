@@ -1,11 +1,11 @@
 import Foundation
 
-/// Turns raw sleep samples into nightly summaries
-/// pure logic with no HealthKit so it's easy to test
-/// the analytics engine will later read what this produces
+/// Turns a pile of raw sleep samples into one clean summary per night — the
+/// shape the cache stores and the engine judges. Pure logic with no Apple
+/// Health in sight, which is what makes it straightforward to test.
 enum SleepNightAggregator {
 
-    /// One sleep episode, a night or a nap
+    /// One stretch of sleep — a night, or a nap.
     struct Session {
         var samples: [SleepSample]
         var start: Date
@@ -16,15 +16,14 @@ enum SleepNightAggregator {
         }
     }
 
-    /// 7200s = 2 hours, the cutoff between separate sleeps
-    /// awake under 2h and it's still the same sleep, a rough night stays whole
-    /// awake longer and the next sleep is its own thing, like an afternoon nap
-    /// this cutoff is how the app tells nights and naps apart
+    /// Two hours, the line between one sleep and the next. Awake for less and
+    /// it is still the same sleep, so a rough night stays in one piece; awake
+    /// for longer and what follows is its own thing, like an afternoon nap.
     static let sessionGap: TimeInterval = 7200
 
-    /// Glues time-ordered samples into sessions
-    /// a sample near the current sleep joins it, a big gap starts a new one
-    /// overlapping samples from two sources end up in the same session
+    /// Glues samples into sessions in time order. A sample close to the current
+    /// sleep joins it; a long gap starts a new one. Overlapping samples from
+    /// the watch and the phone land in the same session.
     static func sessions(from samples: [SleepSample]) -> [Session] {
         var sessions: [Session] = []
         var current: Session?
@@ -47,9 +46,9 @@ enum SleepNightAggregator {
         return sessions
     }
 
-    /// A sleep belongs to the day you WAKE UP from it
-    /// so 23:30 to 07:00 counts as the morning's date, same as the Health app
-    /// longest sleep of the day is the night, shorter ones are naps and dropped
+    /// A sleep belongs to the day you wake up from it, so 23:30 to 07:00 is
+    /// filed under the morning — the same way the Health app does it. The
+    /// longest sleep of a day is the night; shorter ones are naps and dropped.
     static func nightsByWakeDay(_ sessions: [Session], calendar: Calendar = .current) -> [Date: Session] {
         var nights: [Date: Session] = [:]
         for session in sessions {
@@ -62,18 +61,18 @@ enum SleepNightAggregator {
         return nights
     }
 
-    /// The whole pipeline in one call, samples in, nights out oldest first
-    /// cluster into sessions, pick each day's night, sum the merged durations
+    /// The whole thing in one call: samples in, nights out, oldest first.
+    /// Cluster into sessions, pick each day's night, add up the durations.
     static func nights(from samples: [SleepSample], calendar: Calendar = .current) -> [SleepNight] {
         nightsByWakeDay(sessions(from: samples), calendar: calendar)
             .map { wakeDay, session in night(for: session, wakeDay: wakeDay) }
             .sorted { $0.wakeDay < $1.wakeDay }
     }
 
-    /// Sums one session into its night summary without double counting
-    /// phone and watch can log the same minutes so overlaps are merged
-    /// before adding, every minute counts ONCE
-    /// deep and rem stay nil if no sample in the session has stages
+    /// Sums one session into a night without double counting. The phone and the
+    /// watch can log the same minutes, so overlaps are merged before adding and
+    /// every minute counts once. Deep and REM stay nil when the session carried
+    /// no stage data at all.
     static func night(for session: Session, wakeDay: Date) -> SleepNight {
         let hasStageData = session.samples.contains { $0.stage != .unspecified }
         return SleepNight(
@@ -86,9 +85,8 @@ enum SleepNightAggregator {
         )
     }
 
-    /// Total time covered by the samples, counting overlaps once
-    /// lays intervals on a timeline, fuses the ones that touch,
-    /// then adds up the fused blocks
+    /// Total time the samples cover, counting any overlap once. Lays them out
+    /// on a timeline, fuses the ones that touch, then adds up the blocks.
     static func mergedDuration(of samples: [SleepSample]) -> TimeInterval {
         let sorted = samples.sorted { $0.start < $1.start }
 

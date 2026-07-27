@@ -2,8 +2,8 @@ import Charts
 import SwiftUI
 import SwiftData
 
-/// Raw table of cached sleep nights, newest first
-/// line by line check against the Health app's sleep history
+/// Cached sleep nights laid out raw, newest first, for checking line by line
+/// against the Health app's own sleep history.
 struct SleepNightsView: View {
     @Query(sort: \SleepNightRecord.wakeDay, order: .reverse) private var nights: [SleepNightRecord]
 
@@ -25,7 +25,7 @@ struct SleepNightsView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    /// Shape check over the same nights the table lists, one bar of hours per night
+    /// A shape check over the same nights the table lists, one bar per night.
     private var chart: some View {
         Chart(nights) { record in
             BarMark(
@@ -36,7 +36,8 @@ struct SleepNightsView: View {
         .frame(height: 160)
     }
 
-    /// One night: the morning it ended, hours asleep, stage split when known
+    /// One night: the morning it ended, hours asleep, and the stage split when
+    /// that was recorded.
     private func row(for night: SleepNight) -> some View {
         HStack {
             Text(night.wakeDay.formatted(date: .abbreviated, time: .omitted))
@@ -47,7 +48,7 @@ struct SleepNightsView: View {
         .font(.callout)
     }
 
-    /// Stages only appear when the night actually carried stage data
+    /// Stages only show up when the night actually recorded them.
     private func details(for night: SleepNight) -> String {
         var text = String(format: "%.1fh", night.asleepHours)
         if let deep = night.deepPercent, let rem = night.remPercent {

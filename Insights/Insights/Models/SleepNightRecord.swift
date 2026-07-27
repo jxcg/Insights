@@ -1,8 +1,9 @@
 import Foundation
 import SwiftData
 
-/// A SleepNight saved to disk so relaunches read from here, not HealthKit
-/// the sync service writes these, the UI and analytics read them
+/// A SleepNight saved to disk, so a relaunch reads from here rather than going
+/// back to Apple Health. The sync writes these; the screens and the engine read
+/// them.
 @Model
 final class SleepNightRecord {
     var wakeDay: Date
@@ -10,7 +11,7 @@ final class SleepNightRecord {
     var end: Date
     var asleep: TimeInterval
 
-    /// nil means the night's data had no stages, UNKNOWN not zero
+    /// nil means the night recorded no stages — unknown, not zero.
     var deep: TimeInterval?
     var rem: TimeInterval?
 
@@ -23,7 +24,7 @@ final class SleepNightRecord {
         rem = night.rem
     }
 
-    /// Back to the plain value type the rest of the app works with
+    /// Back to the plain value type the rest of the app works with.
     var night: SleepNight {
         SleepNight(wakeDay: wakeDay, start: start, end: end, asleep: asleep, deep: deep, rem: rem)
     }

@@ -1,20 +1,24 @@
 import Foundation
 import SwiftData
 
-/// Keeps the local cache in step with HealthKit
-/// asks each type what changed, recomputes just those days, saves the anchor
-/// first ever run has no anchor so everything counts as changed, same code path
-/// the UI reads SwiftData only, this is the ONE place that writes it
+/// Second step on the path set out in InsightsApp: keeps the local cache in
+/// step with Apple Health. It asks each type what changed, rebuilds only those
+/// days, then saves the bookmark. The very first run has no bookmark, so
+/// everything counts as changed and takes the same code path.
+///
+/// Everything else in the app reads the cache. This is the only thing that
+/// writes it.
 @MainActor
 final class SyncService {
     private let healthKit: HealthKitService
     private let context: ModelContext
     private let calendar = Calendar.current
 
-    /// Days of history the cache keeps, a ceiling not a floor
+    /// Days of history the cache keeps. A ceiling, not a floor — the engine
+    /// works with far less than this.
     private let windowDays = 90
 
-    /// Anchor key for sleep, metrics use their MetricKind rawValue
+    /// Bookmark key for sleep. Metrics use their own MetricKind name.
     private let sleepKey = "sleep"
 
     init(healthKit: HealthKitService, context: ModelContext) {
@@ -22,8 +26,8 @@ final class SyncService {
         self.context = context
     }
 
-    /// One pass over every metric plus sleep
-    /// a failing type just keeps its old anchor and retries next launch
+    /// One pass over every metric, then sleep. A type that fails keeps its old
+    /// bookmark and simply tries again next launch.
     func sync() async {
         for kind in MetricKind.allCases {
             try? await syncMetric(kind)
@@ -33,9 +37,9 @@ final class SyncService {
         try? context.save()
     }
 
-    /// Delta sync for one metric
-    /// records are replaced BEFORE the anchor moves, so a crash mid-sync
-    /// just means the same delta gets reported again next launch
+    /// Brings one metric up to date. Records are replaced before the bookmark
+    /// moves, so a crash halfway through just means the same changes get
+    /// reported again next launch.
     private func syncMetric(_ kind: MetricKind) async throws {
         let existing = anchorRecord(for: kind.rawValue)
         let changes = try await healthKit.fetchMetricChanges(
@@ -51,9 +55,9 @@ final class SyncService {
         saveAnchor(changes.anchorData, for: kind.rawValue, existing: existing)
     }
 
-    /// Delta sync for sleep
-    /// rebuilds nights from the day before the earliest change, a night's
-    /// samples can start the previous evening so the lead-in keeps sessions whole
+    /// Brings sleep up to date. Nights are rebuilt from the day before the
+    /// earliest change, because a night's samples can start the previous
+    /// evening — that extra day keeps sessions whole.
     private func syncSleep() async throws {
         let existing = anchorRecord(for: sleepKey)
         let changes = try await healthKit.fetchSleepChanges(
@@ -71,9 +75,9 @@ final class SyncService {
         saveAnchor(changes.anchorData, for: sleepKey, existing: existing)
     }
 
-    /// The day recomputation starts from, nil means nothing changed at all
-    /// deletions come with no dates, so they redo the last two days as a net
-    /// deleting older history than that needs a full resync to show up
+    /// Which day to rebuild from. nil means nothing changed at all. Deletions
+    /// arrive without dates, so they cast a net over the last two days —
+    /// deleting anything older than that needs a full resync to show up.
     private func recomputeStart(for changes: HealthKitService.SampleChanges) -> Date? {
         var start: Date?
         if let earliestNew = changes.newSampleIntervals.map(\.start).min() {
@@ -86,8 +90,8 @@ final class SyncService {
         return start
     }
 
-    /// Swaps cached days from a start date for freshly computed ones
-    /// delete then insert, so a day that lost all its data disappears properly
+    /// Swaps cached days from a start date for freshly computed ones. Delete
+    /// then insert, so a day that lost all its data actually disappears.
     private func replaceMetricRecords(for kind: MetricKind, from start: Date, with series: [HealthKitService.DailyAggregate]) {
         let key = kind.rawValue
         let stale = FetchDescriptor<DailyMetricRecord>(
@@ -101,7 +105,7 @@ final class SyncService {
         }
     }
 
-    /// Same swap for sleep nights, keyed on the morning they end
+    /// The same swap for sleep nights, filed under the morning they ended.
     private func replaceNightRecords(from start: Date, with nights: [SleepNight]) {
         let stale = FetchDescriptor<SleepNightRecord>(
             predicate: #Predicate { $0.wakeDay >= start })
@@ -119,7 +123,7 @@ final class SyncService {
         return ((try? context.fetch(descriptor)) ?? []).first
     }
 
-    /// The bookmark only ever moves after the records it covers are in place
+    /// The bookmark only ever moves once the records it covers are safely in.
     private func saveAnchor(_ data: Data, for key: String, existing: SyncAnchorRecord?) {
         if let existing {
             existing.anchorData = data
@@ -129,7 +133,7 @@ final class SyncService {
         }
     }
 
-    /// Drops cached days that have slid out of the trailing window
+    /// Drops cached days that have slid out the back of the window.
     private func prune() {
         guard let cutoff = calendar.date(byAdding: .day, value: -windowDays, to: calendar.startOfDay(for: .now)) else {
             return

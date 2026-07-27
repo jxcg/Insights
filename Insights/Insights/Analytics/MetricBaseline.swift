@@ -1,27 +1,28 @@
 import Foundation
 
-/// One day's value for one metric, as plain data the maths can run on —
-/// tests hand-build these, the app derives them from the cached records.
+/// One day, one number. The plainest shape the maths can work on — tests build
+/// these by hand, the app derives them from the cache.
 struct DatedValue {
     let day: Date
     let value: Double
 }
 
-/// A metric's usual range over a trailing window: the rolling mean and spread
-/// that anomaly and trend detection compare a current value against.
+/// What "usual" means for one metric over a stretch of days: the average it
+/// sits around and how much it normally wanders either side. Everything the
+/// engine calls unusual is unusual relative to this.
 struct MetricBaseline {
     let windowDays: Int
     let mean: Double
-    /// Sample standard deviation; nil below two days — one reading has no spread.
+    /// How much the metric normally wanders. nil below two days — a single
+    /// reading cannot tell you anything about spread.
     let standardDeviation: Double?
     let sampleCount: Int
-    /// Share of the window that actually had data, 0–1. Findings scale their
-    /// confidence with this instead of the maths refusing when history is thin.
+    /// Share of the window that had readings, 0–1. Findings scale their
+    /// confidence with this rather than refusing when history is thin.
     let coverage: Double
 
-    /// Baseline over the trailing window ending on endDay inclusive.
-    /// Works from a single day's data upwards; nil only when the window holds
-    /// no data at all.
+    /// The usual range over the days ending on endDay. Works from one day's
+    /// data upwards; nil only when the window is completely empty.
     static func compute(
         over series: [DatedValue],
         windowDays: Int,
@@ -47,7 +48,8 @@ struct MetricBaseline {
 
         let mean = valuesInWindow.reduce(0, +) / Double(valuesInWindow.count)
 
-        // sample (n-1) deviation: the window is a sample of the metric's behaviour
+        // divide by n-1, not n: these days are a sample of how the metric
+        // behaves, not the whole story
         var standardDeviation: Double?
         if valuesInWindow.count >= 2 {
             let squaredDeviations = valuesInWindow.map { ($0 - mean) * ($0 - mean) }
