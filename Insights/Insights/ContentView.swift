@@ -63,6 +63,25 @@ struct ContentView: View {
 
             if !metricRecords.isEmpty || !nightRecords.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
+                    NavigationLink {
+                        FindingsView()
+                    } label: {
+                        HStack {
+                            Text("Today's findings")
+                            Spacer()
+                            Text("top \(rankedFindingCount)")
+                                .monospacedDigit()
+                                .foregroundStyle(rankedFindingCount == 0 ? .secondary : .primary)
+                            Image(systemName: "chevron.right")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .font(.callout)
+                    }
+                    .buttonStyle(.plain)
+
+                    Divider()
+
                     ForEach(dayCounts, id: \.metric) { entry in
                         NavigationLink {
                             MetricDetailView(kind: entry.metric)
@@ -133,6 +152,12 @@ struct ContentView: View {
             return "Last synced \(lastSynced.formatted(date: .abbreviated, time: .shortened))"
         }
         return "Not connected"
+    }
+
+    /// How many findings today's cache is worth, once ranked and cut to size.
+    /// Zero is a real answer here: a quiet day genuinely has nothing to say.
+    private var rankedFindingCount: Int {
+        InsightEngine.dailyFindings(metrics: metricRecords, nights: nightRecords).count
     }
 
     /// How many days each metric has, straight from the cache.

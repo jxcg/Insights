@@ -16,6 +16,12 @@ enum CorrelationDetector {
     /// Days of history pairs are drawn from.
     static let windowDays = 90
 
+    /// How many pairs a link needs before it counts as fully evidenced. Well
+    /// short of the window on purpose: both metrics have to be recorded on the
+    /// same day, so a window of 90 usable pairs is not something real history
+    /// offers, and measuring against one would leave every link looking flimsy.
+    static let pairsForFullConfidence = 45
+
     /// One relationship worth checking. These are written by hand rather than
     /// generated from every possible pairing: testing everything against
     /// everything would surface coincidences at this threshold, and a named
@@ -210,7 +216,7 @@ enum CorrelationDetector {
             currentValue: latestOutcomeValue ?? meanOutcomeValue,
             baselineValue: meanOutcomeValue,
             windowDays: windowDays,
-            confidence: Double(pairs.count) / Double(windowDays),
+            confidence: min(1, Double(pairs.count) / Double(pairsForFullConfidence)),
             direction: direction,
             // a relationship is a lever, not news — nothing has happened yet,
             // so calling it good or bad would overclaim
