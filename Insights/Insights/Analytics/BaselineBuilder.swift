@@ -47,7 +47,13 @@ enum BaselineBuilder {
                     .append(DatedValue(day: record.wakeDay, value: rem / 3600))
             }
         }
-        return seriesByMetric
+        // the cache hands records over in no promised order, and summing the
+        // same days in a different order lands on very slightly different
+        // totals. Sorting here is what makes every stage downstream give the
+        // same answer twice.
+        return seriesByMetric.mapValues { series in
+            series.sorted { $0.day < $1.day }
+        }
     }
 
     /// Both baselines for every metric that has any data at all. Each window

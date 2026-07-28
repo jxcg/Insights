@@ -82,12 +82,26 @@ private func closeEnough(_ actual: Double?, _ expected: Double) -> Bool {
         #expect(finding.tone == .neutral)
         #expect(closeEnough(finding.magnitude, 1.0))
         #expect(finding.windowDays == 90)
-        #expect(closeEnough(finding.confidence, 14.0 / 90.0))
+        #expect(closeEnough(finding.confidence, 14.0 / 45.0))
         // the outcome across the paired days: latest reading, and their mean
         #expect(closeEnough(finding.currentValue, 49))
         #expect(closeEnough(finding.baselineValue, hrvValues.reduce(0, +) / 14))
         // a same-day pairing must never be worded as one day following another
         #expect(finding.plainStatement.contains("on days with"))
+    }
+
+    @Test func confidenceStopsClimbingOncePairsAreEnough() {
+        // 50 pairs is past the point where extra days buy any more certainty,
+        // so the link reports full confidence rather than 50/45
+        let hours = (0..<50).map { 5.0 + Double($0 % 8) * 0.5 }
+        let findings = CorrelationDetector.detect(
+            metrics: quantitySeries(
+                .hrv, endingOn: day(2026, 7, 17), values: hours.map { 10 + 5 * $0 }),
+            nights: sleepSeries(endingOn: day(2026, 7, 17), hours: hours),
+            asOf: now, calendar: utcCalendar)
+
+        #expect(findings.count == 1)
+        #expect(closeEnough(findings[0].confidence, 1.0))
     }
 
     @Test func uncorrelatedSeriesStaySilent() {
@@ -181,7 +195,7 @@ private func closeEnough(_ actual: Double?, _ expected: Double) -> Bool {
         #expect(finding.drivingMetric == .quantity(.activeEnergy))
         #expect(finding.direction == .rising)
         #expect(closeEnough(finding.magnitude, 1.0))
-        #expect(closeEnough(finding.confidence, 14.0 / 90.0))
+        #expect(closeEnough(finding.confidence, 14.0 / 45.0))
         #expect(finding.plainStatement.contains("the day after"))
     }
 
