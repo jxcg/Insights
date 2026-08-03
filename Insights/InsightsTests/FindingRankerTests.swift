@@ -2,13 +2,12 @@ import Foundation
 import Testing
 @testable import Insights
 
-/// The ranker against hand-built findings. Working from findings made here
-/// rather than from detector output keeps these tests about the ordering rules
-/// alone — a change to any detector's maths cannot quietly rewrite them.
+/// The ranker against hand-built findings, so a change to any detector's maths
+/// cannot quietly rewrite these tests.
 @Suite struct FindingRankerTests {
 
-    /// A finding with only the fields ranking looks at worth setting. The rest
-    /// are plausible filler: the ranker never reads them.
+    /// A finding with only the fields ranking reads worth setting; the rest is
+    /// plausible filler.
     private func finding(
         _ type: Finding.FindingType,
         metric: AnalyticMetric,
@@ -39,9 +38,8 @@ import Testing
     private let qualifyingCorrelation = 0.4
 
     @Test func findingsThatOnlyJustQualifyAreWorthTheSame() {
-        // the whole point of the scale: a borderline anomaly, a borderline
-        // trend and a borderline correlation are all worth exactly 1, despite
-        // arriving as 1.5 standard deviations, 5%, and an r of 0.4
+        // the point of the scale: 1.5 standard deviations, 5%, and an r of 0.4
+        // all arrive worth exactly 1
         let anomaly = finding(.anomaly, metric: .quantity(.hrv), magnitude: qualifyingZScore)
         let trend = finding(.trend, metric: .sleepDuration, magnitude: qualifyingRelativeChange)
         let correlation = finding(
@@ -69,8 +67,7 @@ import Testing
             .anomaly, metric: .sleepDuration, magnitude: 2.0, confidence: 0.2)
 
         #expect(FindingRanker.score(wellEvidenced) > FindingRanker.score(barelyEvidenced))
-        // held back, never zeroed: a tenth of a window of history is still worth
-        // more than half of what full history would be
+        // held back, never zeroed
         #expect(FindingRanker.score(barelyEvidenced) > 0.5 * FindingRanker.score(wellEvidenced))
     }
 
@@ -96,8 +93,7 @@ import Testing
 
     @Test func extraStandardDeviationsKeepBuyingPositionButBuyLess() {
         // three times the bar, ten times it, and a reading only a broken sensor
-        // produces: each still outranks the last, so nothing downstream is left
-        // unable to tell them apart
+        // produces — each still outranks the last
         let notable = finding(.anomaly, metric: .quantity(.hrv), magnitude: 4.5)
         let extreme = finding(.anomaly, metric: .quantity(.hrv), magnitude: 15.0)
         let implausible = finding(.anomaly, metric: .quantity(.hrv), magnitude: 150.0)
@@ -107,9 +103,8 @@ import Testing
     }
 
     @Test func oneExtremeReadingCannotRunAwayWithTheList() {
-        // the damping is the point: ten times the bar is worth well under twice
-        // what three times the bar is, so a freak reading leads without burying
-        // the rest of the day
+        // ten times the bar is worth well under twice what three times is, so a
+        // freak reading leads without burying the rest of the day
         let notable = finding(.anomaly, metric: .quantity(.hrv), magnitude: 4.5)
         let extreme = finding(.anomaly, metric: .quantity(.hrv), magnitude: 15.0)
 
@@ -117,8 +112,7 @@ import Testing
     }
 
     @Test func equalScoresAlwaysComeOutInTheSameOrder() {
-        // three findings scoring exactly 1, fed in backwards: yesterday's news
-        // first, then the drift, then the standing relationship
+        // three findings scoring exactly 1, fed in backwards
         let ranked = FindingRanker.rank([
             finding(.correlation, metric: .quantity(.hrv), magnitude: qualifyingCorrelation,
                     drivingMetric: .sleepDuration),
@@ -129,8 +123,8 @@ import Testing
     }
 
     @Test func orderDoesNotDependOnTheOrderFindingsArriveIn() {
-        // the detectors walk a dictionary, so their output order is not
-        // guaranteed run to run; the ranked list has to be
+        // detectors walk a dictionary, so their output order is not guaranteed
+        // run to run; the ranked list has to be
         let day = [
             finding(.anomaly, metric: .quantity(.hrv), magnitude: 2.4, tone: .cautionary),
             finding(.trend, metric: .sleepDuration, magnitude: 0.12),
@@ -160,8 +154,8 @@ import Testing
     }
 
     @Test func leftoverSlotsGoToTheStrongestOfWhatWasPassedOver() {
-        // a quiet day with only two metrics talking: nothing is dropped, and
-        // the repeats come back in score order rather than arrival order
+        // a quiet day with two metrics talking: nothing is dropped, and repeats
+        // come back in score order rather than arrival order
         let ranked = FindingRanker.rank([
             finding(.anomaly, metric: .quantity(.hrv), magnitude: 3.0),
             finding(.trend, metric: .quantity(.hrv), magnitude: 0.1),

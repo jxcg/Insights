@@ -40,17 +40,16 @@ enum TrendDetector {
         return findings.sorted { $0.metric.displayName < $1.metric.displayName }
     }
 
-    /// The most sustained drift one metric shows: the longest window that has
-    /// enough data and moves enough to matter. A flat, noisy, or thinly
-    /// recorded series produces nothing.
+    /// The most sustained drift one metric shows: the longest window with
+    /// enough data that moves enough to matter.
     private static func finding(
         for metric: AnalyticMetric,
         in series: [DatedValue],
         windowEnd: Date,
         calendar: Calendar
     ) -> Finding? {
-        // longest first: a drift that holds over a longer horizon is the more
-        // sustained one, and reads more meaningfully to the user
+        // longest first: a drift holding over a longer horizon is the more
+        // sustained one
         for windowDays in windowDaysOptions.sorted(by: >) {
             guard let trend = fitTrend(
                 over: series, windowDays: windowDays,
@@ -68,9 +67,8 @@ enum TrendDetector {
 
     /// The fitted line over one window, boiled down to what a Finding needs.
     private struct Trend {
-        /// How far the line climbs or falls across the whole window, as a
-        /// signed fraction of the window's average. This is what gets compared
-        /// against the threshold.
+        /// How far the line travels across the window, as a signed fraction of
+        /// the window's average. This is what meets the threshold.
         let relativeChange: Double
         let mean: Double
         let latestValue: Double
@@ -78,9 +76,9 @@ enum TrendDetector {
         let coverage: Double
     }
 
-    /// Draws the best-fit straight line through a window's points and reports
-    /// how far it travels end to end. x counts days from the window's start, so
-    /// the slope comes out as a per-day rate.
+    /// Best-fit straight line through a window's points, and how far it travels
+    /// end to end. x counts days from the window's start, so the slope is a
+    /// per-day rate.
     private static func fitTrend(
         over series: [DatedValue],
         windowDays: Int,
@@ -115,15 +113,14 @@ enum TrendDetector {
             xVariance += (point.x - meanX) * (point.x - meanX)
         }
 
-        // every reading landing on one day gives nothing to slope across, and a
-        // zero average gives nothing to be a percentage of
+        // readings all on one day give nothing to slope across, and a zero
+        // average gives nothing to be a percentage of
         guard xVariance > 0, meanY != 0 else { return nil }
 
         let slopePerDay = crossDeviation / xVariance
         let modelledChange = slopePerDay * Double(windowDays - 1)
 
-        // largest day offset is the most recent reading, which is the value the
-        // Finding quotes as "now"
+        // largest day offset is the most recent reading, quoted as "now"
         guard let latestValue = points.max(by: { $0.x < $1.x })?.y else {
             return nil
         }
@@ -135,8 +132,8 @@ enum TrendDetector {
             coverage: count / Double(windowDays))
     }
 
-    /// Packs a qualifying drift into a Finding: which way from the slope's
-    /// sign, how it should land from what a lasting drift means for this metric.
+    /// Packs a qualifying drift into a Finding, taking its direction from the
+    /// slope's sign.
     private static func makeFinding(
         metric: AnalyticMetric,
         windowDays: Int,
@@ -165,9 +162,9 @@ enum TrendDetector {
                 + "over the past \(windowDays) days, about \(percent)% \(higherOrLower).")
     }
 
-    /// Whether a drift is good news, bad news, or just news. Almost the same
-    /// table as the anomaly stage, with one deliberate difference: activity
-    /// sliding for weeks earns a caution where a single quiet day does not.
+    /// Whether a drift is good news, bad news, or just news. Almost the anomaly
+    /// stage's table, but activity sliding for weeks earns a caution where a
+    /// single quiet day does not.
     private static func tone(for metric: AnalyticMetric, direction: Finding.Direction) -> Finding.Tone {
         switch metric {
         case .quantity(let kind):

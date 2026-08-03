@@ -1,13 +1,9 @@
 import SwiftUI
 import SwiftData
 
-/// The engine's output read straight off the cache, with the workings shown.
-/// It exists to answer the only question thresholds can't be tuned without:
-/// does today's top five actually say anything worth hearing?
-///
-/// This is scaffolding, like the dashboard it hangs off. The designed feed
-/// arrives with the Today screen, and the sentences here are the engine's own
-/// plain statements — no model has been near them.
+/// The engine's output read straight off the cache, with the workings shown,
+/// so thresholds can be judged against real history. Scaffolding for the
+/// designed feed; the sentences are the engine's own, unnarrated.
 struct FindingsView: View {
     @Query private var metricRecords: [DailyMetricRecord]
     @Query private var nightRecords: [SleepNightRecord]
@@ -32,8 +28,7 @@ struct FindingsView: View {
     }
 
     /// One finding as the user would hear it, over the numbers that earned it
-    /// its place. The score line is here for tuning and would not survive into
-    /// the real feed.
+    /// its place. The score line is for tuning only.
     private func row(position: Int, finding: Finding) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline) {

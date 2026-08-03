@@ -1,27 +1,21 @@
 import Foundation
 
 /// Fifth stage on the path set out in InsightsApp, and the one that decides
-/// what actually gets said. Each detector answers its own question in its own
-/// units; this file puts every finding on a single scale, orders them, and cuts
-/// the day down to the short list the narration layer is ever shown.
+/// what actually gets said. Each detector measures in its own units; this puts
+/// them on one scale and cuts the day down to the list narration ever sees.
 enum FindingRanker {
     /// How many findings a day's list may hold. Whatever falls below the line
     /// is never narrated, which makes this the sharpest knob in the engine.
     static let maximumFindings = 5
 
-    /// What a warning is worth against news that is merely interesting. Small
-    /// on purpose: it settles near-ties and nothing more, so a faint worry can
-    /// never outrank something the user plainly needs to know.
+    /// What a warning is worth against merely interesting news. Small on
+    /// purpose: it settles near-ties and nothing more.
     static let cautionaryWeight = 1.25
 
-    /// The day's short list. The first pass gives every metric a hearing before
-    /// any metric gets a second slot; the second fills whatever is left over
-    /// with the strongest of the findings that were passed over.
-    ///
-    /// The split matters because the stages age differently. An anomaly or a
-    /// trend is news and changes daily, while a correlation is a standing fact
-    /// about the last 90 days — ranked on score alone it would hold the same
-    /// slot every morning, saying the same thing.
+    /// The day's short list: every metric gets a hearing before any metric gets
+    /// a second slot, then leftover slots go to the strongest passed over.
+    /// Without that split, correlations — true all week — would hold the same
+    /// slot every morning.
     static func rank(_ findings: [Finding]) -> [Finding] {
         let ordered = findings.sorted(by: isRankedAbove)
 
@@ -54,25 +48,18 @@ enum FindingRanker {
         strength(of: finding) * confidenceWeight(of: finding) * toneWeight(of: finding)
     }
 
-    /// How far past its own stage's bar a finding landed. Each stage measures in
-    /// its own units — standard deviations, percentage change, r — so dividing by
-    /// the bar is what makes them comparable at all.
-    ///
-    /// The result is compressed rather than capped: exactly at the bar is 1, and
-    /// every doubling past it adds 1, so four times the bar is worth 3 and
-    /// sixteen times only 5. A freak reading still leads the list without
-    /// flattening everything under it, and two extreme findings stay
-    /// distinguishable instead of collapsing onto the same number.
+    /// How far past its own stage's bar a finding landed, compressed rather than
+    /// capped: at the bar is 1, and every doubling past it adds 1. A freak
+    /// reading still leads without flattening everything under it, and two
+    /// extreme findings stay distinguishable.
     static func strength(of finding: Finding) -> Double {
-        // detectors never emit below their own bar, but a magnitude that slipped
-        // under would take log2 negative or undefined and poison the sort
+        // a magnitude under the bar would take log2 negative and poison the sort
         let multiplesOfBar = max(finding.magnitude / qualifyingMagnitude(for: finding.type), 1)
         return 1 + log2(multiplesOfBar)
     }
 
     /// The magnitude each stage refuses to speak below. Read from the detectors
-    /// rather than restated here, so tuning a threshold moves the ranking with
-    /// it instead of quietly disagreeing.
+    /// so tuning a threshold moves the ranking with it.
     private static func qualifyingMagnitude(for type: Finding.FindingType) -> Double {
         switch type {
         case .anomaly: AnomalyDetector.zScoreThreshold
@@ -82,9 +69,8 @@ enum FindingRanker {
     }
 
     /// How much patchy history costs a finding. Half the score is earned
-    /// outright and half is on offer for evidence, so a finding drawn from thin
-    /// data still competes rather than disappearing — the same rule the
-    /// detectors follow when they scale confidence instead of refusing.
+    /// outright and half is on offer for evidence, so thin data still competes
+    /// rather than disappearing.
     private static func confidenceWeight(of finding: Finding) -> Double {
         0.5 + 0.5 * finding.confidence
     }
@@ -93,9 +79,8 @@ enum FindingRanker {
         finding.tone == .cautionary ? cautionaryWeight : 1
     }
 
-    /// Best first, with every tie broken by something fixed. Two findings that
-    /// score identically must not swap places between runs: this list is read
-    /// each morning, and one that reshuffles itself reads as untrustworthy.
+    /// Best first, with every tie broken by something fixed. A list read each
+    /// morning that reshuffles itself reads as untrustworthy.
     private static func isRankedAbove(_ lhs: Finding, _ rhs: Finding) -> Bool {
         let leftScore = score(lhs)
         let rightScore = score(rhs)
@@ -111,9 +96,8 @@ enum FindingRanker {
         return (lhs.drivingMetric?.displayName ?? "") < (rhs.drivingMetric?.displayName ?? "")
     }
 
-    /// Which stage speaks first when scores are level: what happened yesterday
-    /// before where things are heading, and both before a standing relationship
-    /// that was just as true last week.
+    /// Which stage speaks first when scores are level: yesterday's news, then
+    /// where things are heading, then a relationship that held last week too.
     private static func stageOrder(of type: Finding.FindingType) -> Int {
         switch type {
         case .anomaly: 0

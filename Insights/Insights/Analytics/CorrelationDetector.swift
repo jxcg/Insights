@@ -16,28 +16,23 @@ enum CorrelationDetector {
     /// Days of history pairs are drawn from.
     static let windowDays = 90
 
-    /// How many pairs a link needs before it counts as fully evidenced. Well
-    /// short of the window on purpose: both metrics have to be recorded on the
-    /// same day, so a window of 90 usable pairs is not something real history
-    /// offers, and measuring against one would leave every link looking flimsy.
+    /// How many pairs a link needs to count as fully evidenced. Well short of
+    /// the window on purpose — both metrics must be recorded on the same day,
+    /// so 90 usable pairs is not something real history offers.
     static let pairsForFullConfidence = 45
 
-    /// One relationship worth checking. These are written by hand rather than
-    /// generated from every possible pairing: testing everything against
-    /// everything would surface coincidences at this threshold, and a named
-    /// idea can be put into words a generated one cannot.
+    /// One relationship worth checking. Written by hand rather than generated
+    /// from every possible pairing: testing everything against everything
+    /// surfaces coincidences at this threshold.
     struct Hypothesis {
-        /// The metric whose movement may lead the outcome.
         let driver: AnalyticMetric
-        /// The metric whose state the user cares about.
         let outcome: AnalyticMetric
-        /// Days between a driver reading and the outcome it pairs with. Sleep
-        /// is filed under the morning it ended, so a night and the day it leads
-        /// into already share a date — those use 0, and only a real overnight
-        /// gap needs 1.
+        /// Days between a driver reading and the outcome it pairs with. Sleep is
+        /// filed under the morning it ended, so a night and the day it leads
+        /// into already share a date — only a real overnight gap needs 1.
         let lagDays: Int
-        /// The driver being higher, worded so it reads after both "on days
-        /// with" and "the day after".
+        /// The driver being higher, worded to read after both "on days with"
+        /// and "the day after".
         let higherDriverPhrase: String
     }
 
@@ -126,10 +121,9 @@ enum CorrelationDetector {
         let outcomeValue: Double
     }
 
-    /// Walks the outcome's days and pairs each with the driver reading from
-    /// `lagDays` earlier, keeping only days where both sides have data. The
-    /// window hangs off the outcome, since the outcome is the thing being
-    /// explained — a driver day just before the window still counts.
+    /// Pairs each outcome day with the driver reading from `lagDays` earlier,
+    /// keeping only days where both sides have data. The window hangs off the
+    /// outcome, so a driver day just before the window still counts.
     private static func dayPairs(
         for hypothesis: Hypothesis,
         driverSeries: [DatedValue],
@@ -165,10 +159,9 @@ enum CorrelationDetector {
         return pairs
     }
 
-    /// Pearson r over the pairs: how much the two move together, divided by how
-    /// much each moves on its own. The units cancel, so anything from -1 to 1
-    /// is comparable. nil when either side is flat — a series that never moves
-    /// cannot move with anything.
+    /// Pearson r: how much the two move together, over how much each moves on
+    /// its own. Units cancel, so -1 to 1 is comparable across metrics. nil when
+    /// either side is flat.
     private static func pearsonCorrelation(of pairs: [DayPair]) -> Double? {
         let count = Double(pairs.count)
         guard count >= 2 else { return nil }
@@ -211,8 +204,8 @@ enum CorrelationDetector {
             metric: hypothesis.outcome,
             drivingMetric: hypothesis.driver,
             magnitude: abs(correlation),
-            // a link has no single day under judgement, so these describe the
-            // outcome across all the paired days instead
+            // no single day is under judgement, so these describe the outcome
+            // across all the paired days
             currentValue: latestOutcomeValue ?? meanOutcomeValue,
             baselineValue: meanOutcomeValue,
             windowDays: windowDays,
