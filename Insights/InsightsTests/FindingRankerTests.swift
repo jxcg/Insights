@@ -93,7 +93,7 @@ import Testing
 
     @Test func extraStandardDeviationsKeepBuyingPositionButBuyLess() {
         // three times the bar, ten times it, and a reading only a broken sensor
-        // produces — each still outranks the last
+        // produces. Each still outranks the last.
         let notable = finding(.anomaly, metric: .quantity(.hrv), magnitude: 4.5)
         let extreme = finding(.anomaly, metric: .quantity(.hrv), magnitude: 15.0)
         let implausible = finding(.anomaly, metric: .quantity(.hrv), magnitude: 150.0)

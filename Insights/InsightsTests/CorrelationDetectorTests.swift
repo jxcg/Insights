@@ -131,7 +131,7 @@ private func closeEnough(_ actual: Double?, _ expected: Double) -> Bool {
     }
 
     @Test func correlationJustBelowThresholdStaysSilent() {
-        // r = 0.3848 across a full 14 pairs — strength, not sample size, rejects it
+        // r = 0.3848 across a full 14 pairs, so strength rejects it, not sample size
         let hrvValues: [Double] = [56, 46, 60, 50, 64, 54, 68, 58, 57, 49, 65, 57, 63, 55]
         let findings = CorrelationDetector.detect(
             metrics: quantitySeries(.hrv, endingOn: day(2026, 7, 17), values: hrvValues),
@@ -202,8 +202,8 @@ private func closeEnough(_ actual: Double?, _ expected: Double) -> Bool {
     @Test func sameDayRelationshipIsNotFoundAtALaggedPairing() {
         // deep sleep planted against the SAME day's activity. Paired at the
         // hypothesis' lag of one day the relationship all but vanishes
-        // (r = -0.026 over a full 14 pairs), so the detector must stay silent —
-        // proof the lag is actually applied rather than assumed away.
+        // (r = -0.026 over a full 14 pairs), so the detector must stay silent.
+        // That is proof the lag is actually applied rather than assumed away.
         let deepHours = activeEnergyValues.map { 0.5 + $0 / 450 }
         let findings = CorrelationDetector.detect(
             metrics: quantitySeries(
@@ -227,7 +227,7 @@ private func closeEnough(_ actual: Double?, _ expected: Double) -> Bool {
     }
 
     @Test func daysOutsideTheWindowAreExcluded() {
-        // a flawless relationship, but from February — outside the 90-day window
+        // a flawless relationship, but from February, outside the 90-day window
         // that ends 17 Jul, so no pairs survive to be correlated
         let end = day(2026, 2, 20)
         let findings = CorrelationDetector.detect(

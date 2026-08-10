@@ -7,30 +7,18 @@ on:
     branches: [main]
 
 jobs:
-  build:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build for iOS Simulator
-        run: |
-          xcodebuild build \
-            -project Insights/Insights.xcodeproj \
-            -scheme Insights \
-            -destination 'generic/platform=iOS Simulator'
-
   test:
-    needs: build
     runs-on: macos-latest
-    strategy:
-      matrix:
-        device: ["iPhone 17", "iPhone Air"]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run tests
+      # `xcodebuild test` builds first, so a separate build job would compile
+      # everything twice on a runner billed at 10x standard minutes. The suite
+      # is pure Swift with no device-specific behaviour, so one simulator is
+      # enough.
+      - name: Build and test
         run: |
           xcodebuild test \
             -project Insights/Insights.xcodeproj \
             -scheme Insights \
-            -destination "platform=iOS Simulator,name=${{ matrix.device }}"
+            -destination 'platform=iOS Simulator,name=iPhone 17'

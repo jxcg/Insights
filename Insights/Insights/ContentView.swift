@@ -10,7 +10,7 @@ import SwiftData
 
 /// A window onto the cache, built to prove the data underneath is right before
 /// any of it gets interpreted. On launch it shows whatever is already stored
-/// and touches Apple Health not at all — the sync button is the only thing
+/// and touches Apple Health not at all. The sync button is the only thing
 /// that does.
 ///
 /// This is scaffolding. The real Today screen replaces it once findings exist
@@ -20,7 +20,7 @@ struct ContentView: View {
 
     @Environment(\.modelContext) private var modelContext
 
-    /// Live views of the cache — they redraw themselves whenever a sync writes.
+    /// Live views of the cache. They redraw themselves whenever a sync writes.
     @Query private var metricRecords: [DailyMetricRecord]
     @Query(sort: \SleepNightRecord.wakeDay) private var nightRecords: [SleepNightRecord]
     @Query private var anchors: [SyncAnchorRecord]
@@ -50,7 +50,11 @@ struct ContentView: View {
             Text(status)
                 .foregroundStyle(.secondary)
 
-            if HealthKitService.isAvailable {
+            if isShowingSampleData {
+                // syncing here would pour the simulator's own Health data into
+                // the invented history and leave a tester looking at both
+                EmptyView()
+            } else if HealthKitService.isAvailable {
                 Button("Sync Apple Health") {
                     Task { await sync() }
                 }
@@ -141,7 +145,19 @@ struct ContentView: View {
     /// What the status line says. Syncing wins over errors, errors over the
     /// cache's age. A last-synced time surviving a relaunch means the cache
     /// is doing its job.
+    /// True only on a `-sampleData` run. Always false in a release build.
+    private var isShowingSampleData: Bool {
+        #if DEBUG
+        SampleData.isEnabled
+        #else
+        false
+        #endif
+    }
+
     private var status: String {
+        if isShowingSampleData {
+            return "Sample data — not real Health data"
+        }
         if isSyncing {
             return "Syncing…"
         }
@@ -203,10 +219,9 @@ struct ContentView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     ContentView()
-        .modelContainer(
-            for: [DailyMetricRecord.self, SleepNightRecord.self, SyncAnchorRecord.self],
-            inMemory: true
-        )
+        .modelContainer(SampleData.container())
 }
+#endif

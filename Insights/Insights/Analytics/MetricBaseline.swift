@@ -1,28 +1,28 @@
 import Foundation
 
-/// One day, one number. The plainest shape the maths can work on — tests build
-/// these by hand, the app derives them from the cache.
+/// One reading: a day and a number. The simplest shape the maths works on.
 struct DatedValue {
     let day: Date
     let value: Double
 }
 
-/// What "usual" means for one metric over a stretch of days: the average it
-/// sits around and how much it normally wanders either side. Everything the
-/// engine calls unusual is unusual relative to this.
+/// What "normal" looks like for one metric over a stretch of days: the average,
+/// and how much it usually varies around that average. Everything the engine
+/// calls unusual is unusual compared to this.
 struct MetricBaseline {
     let windowDays: Int
     let mean: Double
-    /// How much the metric normally wanders. nil below two days — a single
-    /// reading cannot tell you anything about spread.
+    /// How much the metric normally varies. nil below 2 readings, because a
+    /// single number has nothing to vary against.
     let standardDeviation: Double?
     let sampleCount: Int
-    /// Share of the window that had readings, 0–1. Findings scale their
-    /// confidence with this rather than refusing when history is thin.
+    /// How full the window was, 0 to 1. 15 readings over 30 days is 0.5.
+    /// Findings scale their confidence with this instead of giving up when
+    /// history is thin.
     let coverage: Double
 
-    /// The usual range over the days ending on endDay. Works from one day's
-    /// data upwards; nil only when the window is completely empty.
+    /// The normal range over the `windowDays` ending on `endDay`. One day of
+    /// data is enough. nil only when the window is empty.
     static func compute(
         over series: [DatedValue],
         windowDays: Int,
@@ -49,7 +49,7 @@ struct MetricBaseline {
         let mean = valuesInWindow.reduce(0, +) / Double(valuesInWindow.count)
 
         // divide by n-1, not n: these days are a sample of how the metric
-        // behaves, not the whole story
+        // behaves, not every day it ever had
         var standardDeviation: Double?
         if valuesInWindow.count >= 2 {
             let squaredDeviations = valuesInWindow.map { ($0 - mean) * ($0 - mean) }

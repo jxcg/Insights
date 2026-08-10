@@ -2,11 +2,11 @@ import Charts
 import SwiftUI
 import SwiftData
 
-/// Total energy per day, newest first. Nothing here is stored — every row is
-/// added up on the spot from the two cached energy series, so it can be checked
-/// straight against the Health app.
+/// Total energy per day, newest first. Nothing here is stored. Every row is
+/// added up on the spot from the two cached energy series, so it can be
+/// checked straight against the Health app.
 struct TotalEnergyView: View {
-    /// Complete days hides the in-progress and under-recorded ones; all days
+    /// Complete days hides the in-progress and under-recorded ones. All days
     /// shows them dimmed, so the exclusion rule can itself be eyeballed.
     enum Scope: String, CaseIterable, Identifiable {
         case completeDays = "Complete days"
