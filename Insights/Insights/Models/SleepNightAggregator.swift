@@ -1,11 +1,11 @@
 import Foundation
 
-/// Turns a pile of raw sleep samples into one clean summary per night — the
+/// Turns raw sleep samples into one clean summary per night, which is the
 /// shape the cache stores and the engine judges. Pure logic with no Apple
-/// Health in sight, which is what makes it straightforward to test.
+/// Health in sight, so it is straightforward to test.
 enum SleepNightAggregator {
 
-    /// One stretch of sleep — a night, or a nap.
+    /// One unbroken stretch of sleep: a night, or a nap.
     struct Session {
         var samples: [SleepSample]
         var start: Date
@@ -16,9 +16,9 @@ enum SleepNightAggregator {
         }
     }
 
-    /// Two hours, the line between one sleep and the next. Awake for less and
-    /// it is still the same sleep, so a rough night stays in one piece; awake
-    /// for longer and what follows is its own thing, like an afternoon nap.
+    /// Two hours, the line between one sleep and the next. Awake for less than
+    /// this and it is still the same sleep, so a rough night stays in one
+    /// piece. Awake for longer and what follows is its own thing, like a nap.
     static let sessionGap: TimeInterval = 7200
 
     /// Glues samples into sessions in time order. A sample close to the current
@@ -47,8 +47,8 @@ enum SleepNightAggregator {
     }
 
     /// A sleep belongs to the day you wake up from it, so 23:30 to 07:00 is
-    /// filed under the morning — the same way the Health app does it. The
-    /// longest sleep of a day is the night; shorter ones are naps and dropped.
+    /// filed under the morning. That is what the Health app does too. The
+    /// longest sleep of a day is the night, shorter ones are naps and dropped.
     static func nightsByWakeDay(_ sessions: [Session], calendar: Calendar = .current) -> [Date: Session] {
         var nights: [Date: Session] = [:]
         for session in sessions {

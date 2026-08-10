@@ -1,11 +1,10 @@
 import Foundation
 
-/// The engine's front door, and the last stop before narration on the path set
-/// out in InsightsApp. Every detector runs over the same cache and everything
-/// they find is ranked together, so only the short list comes back.
+/// Runs all three detectors and returns the day's best findings.
+/// The rest of the app only ever calls this.
 enum InsightEngine {
-    /// What today is worth saying, best first. Nothing downstream has to know
-    /// which stage found what, or how much was discarded.
+    /// Today's findings, best first. Callers don't need to know which
+    /// detector found what, or how much got thrown away.
     static func dailyFindings(
         metrics: [DailyMetricRecord],
         nights: [SleepNightRecord],

@@ -1,7 +1,7 @@
 import Foundation
 
-/// Every series the engine can judge: the quantity metrics read from Apple
-/// Health, plus the nightly durations derived from sleep. Sleep is in hours.
+/// Everything the engine can analyse: the numbers read from Apple Health,
+/// plus the three sleep durations derived from sleep samples. Sleep is in hours.
 enum AnalyticMetric: Hashable {
     case quantity(MetricKind)
     case sleepDuration
@@ -24,21 +24,48 @@ enum AnalyticMetric: Hashable {
         }
     }
 
-    /// The last day this metric can fairly be judged on. A quantity stops at
-    /// yesterday, because today is still adding to itself; sleep counts today,
-    /// because a night is filed under the morning it ended.
-    func latestCompleteDay(asOf now: Date, calendar: Calendar) -> Date? {
+    /// The last day worth judging this metric on.
+    ///
+    /// Steps stop at yesterday, because today is still counting up and would
+    /// always look low. Sleep can use today, because last night's sleep is
+    /// filed under the morning you woke up.
+    func latestCompleteDay(asOf now: Date, calendar: Calendar) -> Date {
         let today = calendar.startOfDay(for: now)
         switch self {
         case .quantity:
-            return calendar.date(byAdding: .day, value: -1, to: today)
+            return calendar.date(byAdding: .day, value: -1, to: today) ?? today
         case .sleepDuration, .deepSleepDuration, .remSleepDuration:
             return today
         }
     }
 
-    /// A value written the way findings quote it — "72 bpm", "7.5 h". Whole
-    /// numbers stay whole, everything else gets one decimal.
+    /// Good news, bad news, or just news. Decided in Swift so the AI can never
+    /// narrate a warning sign cheerfully.
+    ///
+    /// Pass `sustained: true` for a weeks-long trend, false for one odd day.
+    /// It only changes activity: steps sliding for weeks is worth a caution,
+    /// one quiet day is not.
+    func tone(direction: Finding.Direction, sustained: Bool) -> Finding.Tone {
+        switch self {
+        case .quantity(let kind):
+            switch kind {
+            case .heartRate, .restingHeartRate, .respiratoryRate, .wristTemperature:
+                return direction == .rising ? .cautionary : .neutral
+            case .hrv, .vo2Max:
+                return direction == .falling ? .cautionary : .positive
+            case .steps, .activeEnergy:
+                if direction == .rising { return .positive }
+                return sustained ? .cautionary : .neutral
+            case .basalEnergy:
+                return .neutral
+            }
+        case .sleepDuration, .deepSleepDuration, .remSleepDuration:
+            return direction == .falling ? .cautionary : .neutral
+        }
+    }
+
+    /// Formats a value the way findings quote it: "72 bpm", "7.5 h".
+    /// Whole numbers stay whole, everything else gets one decimal.
     func formattedWithUnit(_ value: Double) -> String {
         let number = value == value.rounded()
             ? String(Int(value))

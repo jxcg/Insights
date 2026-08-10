@@ -2,10 +2,10 @@ import Charts
 import SwiftUI
 import SwiftData
 
-/// One metric's cached days laid out raw, newest first. It exists so the
-/// numbers can be checked line by line against the Health app — if the engine
-/// ever says something surprising, this is where you find out whether the data
-/// or the maths was at fault.
+/// One metric's cached days laid out raw, newest first, so the numbers can be
+/// checked line by line against the Health app. When the engine says something
+/// surprising, this is where you find out whether the data or the maths was at
+/// fault.
 struct MetricDetailView: View {
     let kind: MetricKind
 
@@ -61,7 +61,7 @@ struct MetricDetailView: View {
                 )
             }
         }
-        // averaged metrics sit nowhere near zero — forcing it in would flatten
+        // averaged metrics sit nowhere near zero, and forcing it in would flatten
         // wrist temperature into a straight line
         .chartYScale(domain: .automatic(includesZero: kind.aggregation == .sum))
         .frame(height: 160)

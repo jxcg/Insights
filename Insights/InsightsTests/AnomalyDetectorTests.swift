@@ -39,8 +39,8 @@ private func closeEnough(_ actual: Double?, _ expected: Double) -> Bool {
             asleep: asleep, deep: nil, rem: nil))
     }
 
-    /// Two prior days at 47 and 53 give mean 50 and sample SD √18 ≈ 4.243 —
-    /// the baseline used by most cases below.
+    /// Two prior days at 47 and 53 give mean 50 and sample SD √18 ≈ 4.243.
+    /// This is the baseline most cases below judge against.
     private func priorDays(_ kind: MetricKind) -> [DailyMetricRecord] {
         [
             metricRecord(kind, on: day(2026, 7, 15), value: 47),
@@ -85,7 +85,7 @@ private func closeEnough(_ actual: Double?, _ expected: Double) -> Bool {
     }
 
     @Test func constantHistoryHasNoSpreadSoStaysSilent() {
-        // identical prior days give SD 0 — no defensible z-score, so silence
+        // identical prior days give SD 0, so there is no defensible z-score
         let records = [
             metricRecord(.restingHeartRate, on: day(2026, 7, 15), value: 50),
             metricRecord(.restingHeartRate, on: day(2026, 7, 16), value: 50),
@@ -108,7 +108,7 @@ private func closeEnough(_ actual: Double?, _ expected: Double) -> Bool {
     }
 
     @Test func noReadingOnJudgedDayStaysSilent() {
-        // history exists but yesterday has no value — nothing to judge
+        // history exists but yesterday has no value, so there is nothing to judge
         let findings = AnomalyDetector.detect(
             metrics: priorDays(.restingHeartRate), nights: [], asOf: now, calendar: utcCalendar)
         #expect(findings.isEmpty)

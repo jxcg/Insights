@@ -1,9 +1,8 @@
 import Foundation
 import HealthKit
 
-/// The app's only door to Apple Health, and the first step on the path set out
-/// in InsightsApp. Everything downstream reads the local cache instead, so this
-/// is the single place raw health samples are ever touched.
+/// The app's only door to Apple Health. Everything else reads the local cache,
+/// so this is the single place raw health samples are ever touched.
 final class HealthKitService {
     private let store = HKHealthStore()
 
@@ -14,6 +13,8 @@ final class HealthKitService {
     }
 
     /// Everything the app reads, asked for in one go on first launch.
+    /// Keep this list to types actually queried: each one is a row the user
+    /// has to approve.
     private let readHealthTypes: Set<HKObjectType> = [
         HKQuantityType(.heartRate),
         HKQuantityType(.restingHeartRate),
@@ -25,20 +26,13 @@ final class HealthKitService {
         HKQuantityType(.respiratoryRate),
         HKQuantityType(.appleSleepingWristTemperature),
         HKCategoryType(.sleepAnalysis),
-        HKObjectType.workoutType(),
     ]
 
-    /// Shows the system permission sheet the first time; later calls do nothing
-    /// visible. Apple never tells us whether read access was granted — missing
+    /// Shows the system permission sheet the first time. Later calls do nothing
+    /// visible. Apple never tells us whether read access was granted, so missing
     /// data is the only signal we get.
     func requestAuthorization() async throws {
         try await store.requestAuthorization(toShare: [], read: readHealthTypes)
-    }
-
-    /// One day's value for one metric.
-    struct DailyAggregate {
-        let day: Date
-        let value: Double
     }
 
     /// Midnight N days back, where every trailing-window query starts.
@@ -47,17 +41,17 @@ final class HealthKitService {
         return calendar.date(byAdding: .day, value: -daysBack, to: calendar.startOfDay(for: .now))
     }
 
-    /// Nights of sleep from a given date, oldest first. However many exist is
-    /// fine — one night works as well as ninety. Errors and missing data both
-    /// come back as an empty list, never as a failure.
+    /// Nights of sleep from a given date, oldest first. Any number is fine, one
+    /// night works as well as ninety. Errors and missing data both come back as
+    /// an empty list, never as a failure.
     func fetchSleepNights(from windowStart: Date) async -> [SleepNight] {
         let samples = (try? await fetchAsleepSamples(from: windowStart)) ?? []
         return SleepNightAggregator.nights(from: samples)
     }
 
-    /// Sleep samples as plain values. Only time actually asleep survives —
-    /// in-bed and awake are dropped right here, so nothing downstream ever has
-    /// to think about them.
+    /// Sleep samples as plain values. Only time actually asleep survives:
+    /// in-bed and awake are dropped right here, so nothing downstream has to
+    /// think about them.
     private func fetchAsleepSamples(from windowStart: Date) async throws -> [SleepSample] {
         let sortByStart = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
         let samples: [HKSample] = try await withCheckedThrowingContinuation { continuation in
@@ -86,7 +80,7 @@ final class HealthKitService {
     }
 
     /// Apple's raw category number turned into a sleep stage. nil means it was
-    /// not sleep at all — in bed, or awake.
+    /// not sleep at all, so in bed or awake.
     private static func asleepStage(for categoryValue: Int) -> SleepSample.Stage? {
         switch HKCategoryValueSleepAnalysis(rawValue: categoryValue) {
         case .asleepUnspecified: .unspecified
@@ -98,8 +92,8 @@ final class HealthKitService {
     }
 
     /// What changed for one sample type since we last looked. The intervals say
-    /// which days need recomputing; the anchor is the bookmark to hand back
-    /// next time so we only ask for what is new.
+    /// which days need recomputing. The anchor is the bookmark to hand back next
+    /// time, so we only ask for what is new.
     struct SampleChanges {
         let newSampleIntervals: [DateInterval]
         let deletedCount: Int
@@ -116,8 +110,8 @@ final class HealthKitService {
         try await fetchChanges(for: HKCategoryType(.sleepAnalysis), since: anchorData, daysBack: daysBack)
     }
 
-    /// Apple's "what's new since this bookmark" query. With no bookmark it
-    /// returns everything; after that, only the changes. Deletions come back as
+    /// Apple's "what is new since this bookmark" query. With no bookmark it
+    /// returns everything, after that only the changes. Deletions come back as
     /// bare ids with no dates attached, so callers only ever get a count.
     private func fetchChanges(for sampleType: HKSampleType, since anchorData: Data?, daysBack: Int) async throws -> SampleChanges {
         guard let windowStart = windowStart(daysBack: daysBack) else {
@@ -152,11 +146,10 @@ final class HealthKitService {
         )
     }
 
-    /// One metric's samples bucketed into calendar days from a given date, each
-    /// day collapsed to a single number by that metric's own rule — steps add
-    /// up, heart rate averages. The sync service calls this to rebuild only the
-    /// days that changed.
-    func dailySeries(for kind: MetricKind, from windowStart: Date) async throws -> [DailyAggregate] {
+    /// One metric's samples bucketed into calendar days, each day collapsed to
+    /// a single number by that metric's own rule: steps add up, heart rate
+    /// averages. SyncService calls this to rebuild only the days that changed.
+    func dailySeries(for kind: MetricKind, from windowStart: Date) async throws -> [DatedValue] {
         let options: HKStatisticsOptions = kind.aggregation == .sum ? .cumulativeSum : .discreteAverage
         let query = HKStatisticsCollectionQuery(
             quantityType: kind.quantityType,
@@ -177,13 +170,13 @@ final class HealthKitService {
             store.execute(query)
         }
 
-        var series: [DailyAggregate] = []
+        var series: [DatedValue] = []
         collection.enumerateStatistics(from: windowStart, to: .now) { statistics, _ in
             let quantity = kind.aggregation == .sum
                 ? statistics.sumQuantity()
                 : statistics.averageQuantity()
             if let quantity {
-                series.append(DailyAggregate(
+                series.append(DatedValue(
                     day: statistics.startDate,
                     value: quantity.doubleValue(for: kind.unit)
                 ))

@@ -1,19 +1,20 @@
 import Foundation
 
-/// Second stage on the path set out in InsightsApp, and the one that answers
-/// "was yesterday odd?". It compares each metric's latest complete day against
-/// the range that metric normally sits in, and turns each surprise into a
-/// Finding the narration layer can read out.
+/// Answers "was yesterday odd?".
+///
+/// Compares each metric's latest complete day against the range that metric
+/// normally sits in. Anything far enough outside becomes a Finding.
 enum AnomalyDetector {
-    /// How far from the usual mean a value must sit, counted in standard
-    /// deviations, before it is worth mentioning. The one sensitivity knob.
+    /// How far from normal a value must sit before it is worth mentioning,
+    /// counted in standard deviations (a "z-score"). 1.5 flags roughly the
+    /// most unusual 1 day in 7. The one sensitivity knob.
     static let zScoreThreshold = 1.5
 
     /// Days of history the judged value is compared against.
     static let baselineWindowDays = 30
 
-    /// Every metric's latest complete day, judged. A metric with no reading on
-    /// that day, or too little history to have a usual range, stays silent.
+    /// Judges every metric's latest complete day. A metric stays silent if it
+    /// has no reading that day, or too little history to have a normal range.
     static func detect(
         metrics: [DailyMetricRecord],
         nights: [SleepNightRecord],
@@ -25,20 +26,22 @@ enum AnomalyDetector {
 
         var findings: [Finding] = []
         for (metric, series) in seriesByMetric {
-            guard let judgedDay = metric.latestCompleteDay(asOf: now, calendar: calendar) else {
-                continue
-            }
+            let judgedDay = metric.latestCompleteDay(asOf: now, calendar: calendar)
             if let finding = finding(for: metric, in: series, judgedDay: judgedDay, calendar: calendar) {
                 findings.append(finding)
             }
         }
-        // ranking comes later in the pipeline; alphabetical keeps output stable
+        // FindingRanker sorts properly later. Alphabetical just keeps the
+        // output the same from run to run.
         return findings.sorted { $0.metric.displayName < $1.metric.displayName }
     }
 
-    /// How unusual one day was, as a z-score against the days before it. The
-    /// judged day is deliberately left out of its own baseline — otherwise a
-    /// big spike drags the very range it is being measured against.
+    /// How unusual one day was, as a z-score: how many standard deviations it
+    /// sits from the recent average.
+    ///
+    /// The judged day is left out of its own baseline on purpose. Otherwise a
+    /// big spike drags up the very average it is measured against, and ends up
+    /// looking less unusual than it is.
     private static func finding(
         for metric: AnalyticMetric,
         in series: [DatedValue],
@@ -77,7 +80,8 @@ enum AnomalyDetector {
             windowDays: baselineWindowDays,
             confidence: baseline.coverage,
             direction: direction,
-            tone: tone(for: metric, direction: direction),
+            // one odd day proves little, so activity gets the lenient reading
+            tone: metric.tone(direction: direction, sustained: false),
             meaning: "\(metric.displayName) \(period) sat well \(aboveOrBelow) its usual range: "
                 + "\(metric.formattedWithUnit(currentValue)) against a typical "
                 + "\(metric.formattedWithUnit(baseline.mean)).",
@@ -86,32 +90,11 @@ enum AnomalyDetector {
                 + "\(metric.formattedWithUnit(baseline.mean)).")
     }
 
-    /// When the judged day was, in the words the user would use for it.
+    /// What to call the judged day in a sentence: "yesterday" or "last night".
     private static func periodLabel(for metric: AnalyticMetric) -> String {
         switch metric {
         case .quantity: "yesterday"
         case .sleepDuration, .deepSleepDuration, .remSleepDuration: "last night"
-        }
-    }
-
-    /// Whether an odd day is good news, bad news, or just news. Decided here so
-    /// the model narrating it can never cheerfully report a warning sign.
-    /// Deliberately cautious — one day on its own rarely proves much.
-    private static func tone(for metric: AnalyticMetric, direction: Finding.Direction) -> Finding.Tone {
-        switch metric {
-        case .quantity(let kind):
-            switch kind {
-            case .heartRate, .restingHeartRate, .respiratoryRate, .wristTemperature:
-                direction == .rising ? .cautionary : .neutral
-            case .hrv, .vo2Max:
-                direction == .falling ? .cautionary : .positive
-            case .steps, .activeEnergy:
-                direction == .rising ? .positive : .neutral
-            case .basalEnergy:
-                .neutral
-            }
-        case .sleepDuration, .deepSleepDuration, .remSleepDuration:
-            direction == .falling ? .cautionary : .neutral
         }
     }
 }

@@ -57,9 +57,11 @@ struct FindingsView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     NavigationStack {
         FindingsView()
     }
-    .modelContainer(for: [DailyMetricRecord.self, SleepNightRecord.self], inMemory: true)
+    .modelContainer(SampleData.container())
 }
+#endif

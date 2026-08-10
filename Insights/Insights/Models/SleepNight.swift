@@ -12,7 +12,7 @@ struct SleepNight {
     let asleep: TimeInterval
 
     /// Seconds of deep and REM sleep. nil means the night recorded no stages
-    /// at all — unknown, not zero.
+    /// at all, so unknown rather than zero.
     let deep: TimeInterval?
     let rem: TimeInterval?
 

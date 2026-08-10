@@ -2,8 +2,8 @@ import Foundation
 import SwiftData
 
 /// A SleepNight saved to disk, so a relaunch reads from here rather than going
-/// back to Apple Health. The sync writes these; the screens and the engine read
-/// them.
+/// back to Apple Health. The sync writes these. The screens and the engine
+/// read them.
 @Model
 final class SleepNightRecord {
     var wakeDay: Date
@@ -11,7 +11,7 @@ final class SleepNightRecord {
     var end: Date
     var asleep: TimeInterval
 
-    /// nil means the night recorded no stages — unknown, not zero.
+    /// nil means the night recorded no stages, so unknown rather than zero.
     var deep: TimeInterval?
     var rem: TimeInterval?
 

@@ -1,10 +1,11 @@
 import Foundation
 import SwiftData
 
-/// Second step on the path set out in InsightsApp: keeps the local cache in
-/// step with Apple Health. It asks each type what changed, rebuilds only those
-/// days, then saves the bookmark. The very first run has no bookmark, so
-/// everything counts as changed and takes the same code path.
+/// Keeps the local cache in step with Apple Health.
+///
+/// Asks each type what changed, rebuilds only those days, then saves the
+/// bookmark. The first run has no bookmark, so everything counts as changed
+/// and takes the same code path.
 ///
 /// Everything else in the app reads the cache. This is the only thing that
 /// writes it.
@@ -14,7 +15,7 @@ final class SyncService {
     private let context: ModelContext
     private let calendar = Calendar.current
 
-    /// Days of history the cache keeps. A ceiling, not a floor — the engine
+    /// Days of history the cache keeps. A ceiling, not a floor: the engine
     /// works with far less than this.
     private let windowDays = 90
 
@@ -48,16 +49,13 @@ final class SyncService {
         if let start = recomputeStart(for: changes) {
             let series = try await healthKit.dailySeries(for: kind, from: start)
             replaceMetricRecords(for: kind, from: start, with: series)
-            print("sync \(kind.rawValue): recomputed \(series.count) days from \(start.formatted(date: .abbreviated, time: .omitted))")
-        } else {
-            print("sync \(kind.rawValue): no changes")
         }
         saveAnchor(changes.anchorData, for: kind.rawValue, existing: existing)
     }
 
     /// Brings sleep up to date. Nights are rebuilt from the day before the
-    /// earliest change, because a night's samples can start the previous
-    /// evening — that extra day keeps sessions whole.
+    /// earliest change: a night's samples can start the previous evening, and
+    /// that extra day keeps sessions whole.
     private func syncSleep() async throws {
         let existing = anchorRecord(for: sleepKey)
         let changes = try await healthKit.fetchSleepChanges(
@@ -68,16 +66,14 @@ final class SyncService {
             let nights = await healthKit.fetchSleepNights(from: leadIn)
                 .filter { $0.wakeDay >= start }
             replaceNightRecords(from: start, with: nights)
-            print("sync sleep: recomputed \(nights.count) nights from \(start.formatted(date: .abbreviated, time: .omitted))")
-        } else {
-            print("sync sleep: no changes")
         }
         saveAnchor(changes.anchorData, for: sleepKey, existing: existing)
     }
 
-    /// Which day to rebuild from. nil means nothing changed at all. Deletions
-    /// arrive without dates, so they cast a net over the last two days —
-    /// deleting anything older than that needs a full resync to show up.
+    /// Which day to rebuild from. nil means nothing changed at all.
+    ///
+    /// Deletions arrive without dates, so they cast a net over the last two
+    /// days. Deleting anything older than that needs a full resync to show up.
     private func recomputeStart(for changes: HealthKitService.SampleChanges) -> Date? {
         var start: Date?
         if let earliestNew = changes.newSampleIntervals.map(\.start).min() {
@@ -92,16 +88,16 @@ final class SyncService {
 
     /// Swaps cached days from a start date for freshly computed ones. Delete
     /// then insert, so a day that lost all its data actually disappears.
-    private func replaceMetricRecords(for kind: MetricKind, from start: Date, with series: [HealthKitService.DailyAggregate]) {
+    private func replaceMetricRecords(for kind: MetricKind, from start: Date, with series: [DatedValue]) {
         let key = kind.rawValue
         let stale = FetchDescriptor<DailyMetricRecord>(
             predicate: #Predicate { $0.metricKind == key && $0.date >= start })
         for record in (try? context.fetch(stale)) ?? [] {
             context.delete(record)
         }
-        for aggregate in series {
+        for dated in series {
             context.insert(DailyMetricRecord(
-                date: aggregate.day, metricKind: key, value: aggregate.value, unit: kind.unitLabel))
+                date: dated.day, metricKind: key, value: dated.value, unit: kind.unitLabel))
         }
     }
 

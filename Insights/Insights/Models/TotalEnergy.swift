@@ -1,16 +1,17 @@
 import Foundation
 
-/// Total daily energy, worked out on the spot from the two cached series:
-/// active plus resting. Apple Health has no total-energy type, and storing the
-/// sum would be a cache of a cache that can drift out of step — so it is
-/// computed wherever it is shown instead.
+/// Total daily energy, worked out on the spot: active plus resting.
+///
+/// Apple Health has no total-energy type. Storing the sum would be a cache of
+/// a cache, which can drift out of step, so it is computed wherever it is
+/// shown instead.
 enum TotalEnergy {
     struct DayTotal: Identifiable {
         let day: Date
         let kilocalories: Double
         /// False while a day is still running, or when its resting number came
         /// in well under a typical day. The total still exists, it just reads
-        /// low — analysis should only trust fully recorded days.
+        /// low. Analysis should only trust fully recorded days.
         let hasCompleteEnergyRecord: Bool
         var id: Date { day }
     }

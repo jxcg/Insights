@@ -41,7 +41,7 @@ private func closeEnough(_ actual: Double?, _ expected: Double) -> Bool {
     }
 
     /// A run of consecutive daily readings whose last value lands on `end` and
-    /// each earlier one a day before it — the shape trend fits run over.
+    /// each earlier one a day before it. This is the shape trend fits run over.
     private func quantitySeries(_ kind: MetricKind, endingOn end: Date, values: [Double]) -> [DailyMetricRecord] {
         values.enumerated().map { index, value in
             let offsetFromEnd = values.count - 1 - index
@@ -80,7 +80,7 @@ private func closeEnough(_ actual: Double?, _ expected: Double) -> Bool {
     }
 
     @Test func flatSeriesStaysSilent() {
-        // a perfectly level series has slope 0 — no drift to report
+        // a perfectly level series has slope 0, so there is no drift to report
         let records = quantitySeries(
             .restingHeartRate, endingOn: day(2026, 7, 17),
             values: [55, 55, 55, 55, 55, 55, 55])
