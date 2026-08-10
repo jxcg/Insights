@@ -3,22 +3,21 @@ import Foundation
 /// Decides what actually gets said.
 ///
 /// Each detector measures in its own units: standard deviations, percent,
-/// correlation. This puts them all on one scale and cuts the day down to a
-/// short list.
+/// correlation. This puts them on one scale and cuts the day to a short list.
 enum FindingRanker {
-    /// How many findings a day's list can hold. Anything below the line is
-    /// never narrated, which makes this the sharpest knob in the engine.
+    /// How many findings a day can hold. Below the line is never narrated,
+    /// which makes this the sharpest knob in the engine.
     static let maximumFindings = 5
 
-    /// What a warning is worth against merely interesting news. Small on
-    /// purpose: it settles near-ties and nothing more.
+    /// What a warning is worth against merely interesting news.
+    /// Small on purpose: settles near-ties, nothing more.
     static let cautionaryWeight = 1.25
 
     /// Picks the day's short list. Every metric gets one slot before any metric
     /// gets a second, then leftover slots go to the best runners-up.
     ///
-    /// Without that rule correlations would win every morning. They stay true
-    /// all week, so the same one would take the same slot every day.
+    /// Without that rule correlations win every morning. They stay true all
+    /// week, so the same one takes the same slot every day.
     static func rank(_ findings: [Finding]) -> [Finding] {
         let ordered = findings.sorted(by: isRankedAbove)
 
@@ -40,13 +39,13 @@ enum FindingRanker {
             selected.append(finding)
         }
 
-        // picking settled which findings make the list. The reader still wants
+        // picking settled which findings make the list. Reader still wants
         // them best first.
         return selected.sorted(by: isRankedAbove)
     }
 
-    /// What a finding is worth overall: how far past its detector's threshold
-    /// it landed, reduced by patchy history, nudged up if it is a warning.
+    /// What a finding is worth: how far past its detector's threshold it
+    /// landed, reduced by patchy history, nudged up if it is a warning.
     static func score(_ finding: Finding) -> Double {
         strength(of: finding) * confidenceWeight(of: finding) * toneWeight(of: finding)
     }
@@ -62,8 +61,8 @@ enum FindingRanker {
         return 1 + log2(multiplesOfBar)
     }
 
-    /// The threshold each detector refuses to report below. Read from the
-    /// detectors themselves, so tuning one moves the ranking with it.
+    /// Threshold each detector refuses to report below. Read from the detectors
+    /// themselves, so tuning one moves the ranking with it.
     private static func qualifyingMagnitude(for type: Finding.FindingType) -> Double {
         switch type {
         case .anomaly: AnomalyDetector.zScoreThreshold
@@ -72,9 +71,8 @@ enum FindingRanker {
         }
     }
 
-    /// What patchy history costs a finding. Half the score is earned outright,
-    /// half is on offer for evidence, so thin data still competes instead of
-    /// disappearing.
+    /// What patchy history costs. Half the score is earned outright, half is on
+    /// offer for evidence, so thin data still competes instead of vanishing.
     private static func confidenceWeight(of finding: Finding) -> Double {
         0.5 + 0.5 * finding.confidence
     }
@@ -83,8 +81,8 @@ enum FindingRanker {
         finding.tone == .cautionary ? cautionaryWeight : 1
     }
 
-    /// Best first, with every tie broken by something fixed. A list that
-    /// reshuffles itself each morning reads as untrustworthy.
+    /// Best first, every tie broken by something fixed. A list that reshuffles
+    /// itself each morning reads as untrustworthy.
     private static func isRankedAbove(_ lhs: Finding, _ rhs: Finding) -> Bool {
         let leftScore = score(lhs)
         let rightScore = score(rhs)
@@ -100,8 +98,8 @@ enum FindingRanker {
         return (lhs.drivingMetric?.displayName ?? "") < (rhs.drivingMetric?.displayName ?? "")
     }
 
-    /// Who speaks first when scores are level: yesterday's news, then where
-    /// things are heading, then a relationship that was also true last week.
+    /// Who speaks first at equal scores: yesterday's news, then where things
+    /// are heading, then a relationship that was true last week too.
     private static func stageOrder(of type: Finding.FindingType) -> Int {
         switch type {
         case .anomaly: 0

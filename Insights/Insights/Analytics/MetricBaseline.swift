@@ -1,28 +1,28 @@
 import Foundation
 
-/// One reading: a day and a number. The simplest shape the maths works on.
+/// One reading: a day and a number. Simplest shape the maths works on.
 struct DatedValue {
     let day: Date
     let value: Double
 }
 
-/// What "normal" looks like for one metric over a stretch of days: the average,
-/// and how much it usually varies around that average. Everything the engine
-/// calls unusual is unusual compared to this.
+/// What "normal" looks like for one metric over a stretch of days: average,
+/// plus how much it usually varies. Everything called unusual is unusual
+/// against this.
 struct MetricBaseline {
     let windowDays: Int
     let mean: Double
-    /// How much the metric normally varies. nil below 2 readings, because a
-    /// single number has nothing to vary against.
+    /// How much it normally varies. nil below 2 readings: one number has
+    /// nothing to vary against.
     let standardDeviation: Double?
     let sampleCount: Int
-    /// How full the window was, 0 to 1. 15 readings over 30 days is 0.5.
-    /// Findings scale their confidence with this instead of giving up when
-    /// history is thin.
+    /// How full the window was, 0 to 1: readings divided by window length.
+    /// 15 readings over 30 days is 0.5. Thin history lowers confidence
+    /// instead of hiding findings.
     let coverage: Double
 
-    /// The normal range over the `windowDays` ending on `endDay`. One day of
-    /// data is enough. nil only when the window is empty.
+    /// Normal range over the `windowDays` ending on `endDay`.
+    /// One day of data is enough. nil only when the window is empty.
     static func compute(
         over series: [DatedValue],
         windowDays: Int,

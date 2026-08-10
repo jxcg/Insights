@@ -1,12 +1,12 @@
 import Foundation
 
-/// Turns cached records into the tidy series every detector reads.
+/// Turns cached records into the tidy series detectors read.
 ///
-/// The sync writes records in whatever shape suited it. The maths wants one
-/// sorted list of (day, value) per metric.
+/// Sync writes records in whatever shape suited it. Maths wants one sorted
+/// list of (day, value) per metric.
 enum BaselineBuilder {
-    /// The cache flattened into one day-by-day series per metric. Every
-    /// detector starts here, so they all judge the same numbers.
+    /// Cache flattened into one day-by-day series per metric.
+    /// Every detector starts here, so they all judge the same numbers.
     static func dailySeries(
         metrics: [DailyMetricRecord],
         nights: [SleepNightRecord],
@@ -22,9 +22,9 @@ enum BaselineBuilder {
                 .append(DatedValue(day: record.date, value: record.value))
         }
 
-        // sleep is stored in seconds but analysed in hours. A night is skipped
-        // until the user has been awake past the session gap, because until
-        // then more sleep could still get added to it
+        // sleep is stored in seconds, analysed in hours. Skip a night until the
+        // user has been awake past the session gap: before that, more sleep
+        // could still be added to it
         for record in nights {
             guard now.timeIntervalSince(record.end) >= SleepNightAggregator.sessionGap else {
                 continue
@@ -40,10 +40,9 @@ enum BaselineBuilder {
                     .append(DatedValue(day: record.wakeDay, value: rem / 3600))
             }
         }
-        // records arrive in no particular order, and adding the same numbers in
-        // a different order gives very slightly different totals. That is how
-        // floating point works. Sorting here is what makes two runs over the
-        // same data agree.
+        // records arrive unordered, and adding the same numbers in a different
+        // order gives slightly different totals. That is floating point.
+        // Sorting here is what makes two runs agree.
         return seriesByMetric.mapValues { series in
             series.sorted { $0.day < $1.day }
         }

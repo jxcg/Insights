@@ -1,9 +1,9 @@
 import SwiftUI
 import SwiftData
 
-/// The engine's output read straight off the cache, with the workings shown,
-/// so thresholds can be judged against real history. Scaffolding for the
-/// designed feed; the sentences are the engine's own, unnarrated.
+/// Engine output read straight off the cache, workings shown, so thresholds
+/// can be judged against real history. Sentences are the engine's own,
+/// unnarrated.
 struct FindingsView: View {
     @Query private var metricRecords: [DailyMetricRecord]
     @Query private var nightRecords: [SleepNightRecord]

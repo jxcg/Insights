@@ -1,10 +1,3 @@
-//
-//  InsightsApp.swift
-//  Insights
-//
-//  Created by Joshua Ng on 11/07/2026.
-//
-
 import SwiftUI
 import SwiftData
 

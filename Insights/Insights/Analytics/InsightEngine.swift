@@ -1,10 +1,10 @@
 import Foundation
 
-/// Runs all three detectors and returns the day's best findings.
-/// The rest of the app only ever calls this.
+/// Runs all three detectors, returns the day's best findings.
+/// Rest of the app only calls this.
 enum InsightEngine {
-    /// Today's findings, best first. Callers don't need to know which
-    /// detector found what, or how much got thrown away.
+    /// Today's findings, best first. Callers don't need to know which detector
+    /// found what, or how much got thrown away.
     static func dailyFindings(
         metrics: [DailyMetricRecord],
         nights: [SleepNightRecord],

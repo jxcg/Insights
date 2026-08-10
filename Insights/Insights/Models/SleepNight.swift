@@ -1,6 +1,6 @@
 import Foundation
 
-/// One night of sleep, summarised. The end of the sleep pipeline and the shape
+/// One night of sleep, summarised. End of the sleep pipeline, and the shape
 /// both the engine and the screens read.
 struct SleepNight {
     /// The morning's date, at midnight.
