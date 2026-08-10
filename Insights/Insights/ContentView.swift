@@ -52,7 +52,7 @@ struct ContentView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(isSyncing)
             } else {
-                Text("Health data isn't available on this device.")
+                Text("Health data is not available from this device.")
                     .foregroundStyle(.secondary)
             }
 
