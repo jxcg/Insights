@@ -2,10 +2,11 @@ import Charts
 import SwiftUI
 import SwiftData
 
-/// One metric's cached days laid out raw, newest first, so the numbers can be
-/// checked line by line against the Health app. When the engine says something
-/// surprising, this is where you find out whether the data or the maths was at
-/// fault.
+/// One metric's cached days, raw, newest first, so numbers can be checked line
+/// by line against the Health app.
+///
+/// When the engine says something surprising, this is where you find out
+/// whether the data or the maths was at fault.
 struct MetricDetailView: View {
     let kind: MetricKind
 

@@ -1,27 +1,25 @@
 import Foundation
 
-/// Answers "where is this heading?".
+/// "Where is this heading?"
 ///
-/// The anomaly detector looks at a single day. This one draws a line through
-/// many days and reports the metrics genuinely drifting up or down.
+/// Anomaly detector looks at one day. This draws a line through many days and
+/// reports metrics genuinely drifting.
 enum TrendDetector {
-    /// Window lengths to look for a drift over, longest first. Each catches a
-    /// different pace: a fast slide shows up in 7 days, a slow one only over 90.
-    /// A drift holding over more days is the more sustained one, so the first
-    /// window that qualifies wins.
+    /// Window lengths to check, longest first. Each catches a different pace:
+    /// a fast slide shows in 7 days, a slow one only over 90. Longer drift is
+    /// more sustained, so the first window to qualify wins.
     static let windowDaysOptions = [90, 21, 7]
 
     /// How far a metric must move across a window, as a fraction of that
-    /// window's average, to count as a trend. 0.05 is 5%. The one sensitivity
-    /// knob.
+    /// window's average. 0.05 is 5%. Main sensitivity knob.
     static let relativeChangeThreshold = 0.05
 
     /// How much of a window needs real readings before its length is honest.
-    /// Three readings scattered across 90 days are not a 90-day trend.
+    /// Three readings across 90 days is not a 90-day trend.
     static let minimumCoverage = 0.5
 
-    /// One Finding per metric drifting past the threshold. Each metric is
-    /// measured up to its own last complete day.
+    /// One Finding per metric drifting past the threshold.
+    /// Each measured up to its own last complete day.
     static func detect(
         metrics: [DailyMetricRecord],
         nights: [SleepNightRecord],
@@ -38,13 +36,13 @@ enum TrendDetector {
                 findings.append(finding)
             }
         }
-        // FindingRanker sorts properly later. Alphabetical just keeps the
-        // output the same from run to run.
+        // FindingRanker sorts properly later. Alphabetical just keeps output
+        // the same run to run.
         return findings.sorted { $0.metric.displayName < $1.metric.displayName }
     }
 
-    /// The most sustained drift one metric shows: the longest window that has
-    /// enough data and moves enough to matter.
+    /// Most sustained drift a metric shows: longest window with enough data
+    /// that moves enough to matter.
     private static func finding(
         for metric: AnalyticMetric,
         in series: [DatedValue],
@@ -66,10 +64,10 @@ enum TrendDetector {
         return nil
     }
 
-    /// The fitted line, reduced to what a Finding needs.
+    /// Fitted line, reduced to what a Finding needs.
     private struct Trend {
-        /// How far the line travels across the window, as a signed fraction of
-        /// the window's average. This is the number that meets the threshold.
+        /// How far the line travels, as a signed fraction of the window's
+        /// average. This is what meets the threshold.
         let relativeChange: Double
         let mean: Double
         let latestValue: Double
@@ -77,12 +75,11 @@ enum TrendDetector {
         let coverage: Double
     }
 
-    /// Fits a straight line through one window's readings and reports how far
-    /// that line travels start to end.
+    /// Fits a straight line through a window's readings, reports how far it
+    /// travels start to end.
     ///
-    /// This is least-squares regression: the line sitting closest to all the
-    /// points at once. x counts days from the window's start, so the slope
-    /// comes out as change per day.
+    /// Least-squares regression: the line sitting closest to all points at
+    /// once. x counts days from window start, so slope is change per day.
     private static func fitTrend(
         over series: [DatedValue],
         windowDays: Int,
@@ -110,8 +107,8 @@ enum TrendDetector {
         let meanX = points.reduce(0) { $0 + $1.x } / count
         let meanY = points.reduce(0) { $0 + $1.y } / count
 
-        // the two halves of the slope formula: how x and y vary together, over
-        // how much x varies on its own
+        // the two halves of the slope formula: how x and y vary together,
+        // divided by how much x varies on its own
         var crossDeviation = 0.0   // sum of (x - meanX)(y - meanY)
         var xVariance = 0.0        // sum of (x - meanX) squared
         for point in points {
@@ -119,8 +116,8 @@ enum TrendDetector {
             xVariance += (point.x - meanX) * (point.x - meanX)
         }
 
-        // all readings on one day gives nothing to slope across, and a zero
-        // average gives nothing to be a percentage of
+        // all readings on one day: nothing to slope across.
+        // zero average: nothing to be a percentage of.
         guard xVariance > 0, meanY != 0 else { return nil }
 
         let slopePerDay = crossDeviation / xVariance
@@ -138,8 +135,7 @@ enum TrendDetector {
             coverage: count / Double(windowDays))
     }
 
-    /// Turns a qualifying drift into a Finding. Direction comes from the sign
-    /// of the slope.
+    /// Turns a qualifying drift into a Finding. Direction from the slope's sign.
     private static func makeFinding(
         metric: AnalyticMetric,
         windowDays: Int,

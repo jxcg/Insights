@@ -1,7 +1,7 @@
 import Foundation
 
-/// Everything the engine can analyse: the numbers read from Apple Health,
-/// plus the three sleep durations derived from sleep samples. Sleep is in hours.
+/// Everything the engine can analyse: numbers from Apple Health, plus three
+/// sleep durations derived from sleep samples. Sleep is in hours.
 enum AnalyticMetric: Hashable {
     case quantity(MetricKind)
     case sleepDuration
@@ -24,11 +24,10 @@ enum AnalyticMetric: Hashable {
         }
     }
 
-    /// The last day worth judging this metric on.
+    /// Last day worth judging this metric on.
     ///
-    /// Steps stop at yesterday, because today is still counting up and would
-    /// always look low. Sleep can use today, because last night's sleep is
-    /// filed under the morning you woke up.
+    /// Steps stop at yesterday: today is still counting up, so it always looks
+    /// low. Sleep can use today, since last night files under this morning.
     func latestCompleteDay(asOf now: Date, calendar: Calendar) -> Date {
         let today = calendar.startOfDay(for: now)
         switch self {
@@ -39,12 +38,12 @@ enum AnalyticMetric: Hashable {
         }
     }
 
-    /// Good news, bad news, or just news. Decided in Swift so the AI can never
-    /// narrate a warning sign cheerfully.
+    /// Good news, bad news, or just news. Set in Swift so AI can't narrate a
+    /// warning sign cheerfully.
     ///
-    /// Pass `sustained: true` for a weeks-long trend, false for one odd day.
-    /// It only changes activity: steps sliding for weeks is worth a caution,
-    /// one quiet day is not.
+    /// `sustained` is true for a weeks-long trend, false for one odd day.
+    /// Only changes activity: steps sliding for weeks earns a caution, one
+    /// quiet day does not.
     func tone(direction: Finding.Direction, sustained: Bool) -> Finding.Tone {
         switch self {
         case .quantity(let kind):
@@ -64,8 +63,8 @@ enum AnalyticMetric: Hashable {
         }
     }
 
-    /// Formats a value the way findings quote it: "72 bpm", "7.5 h".
-    /// Whole numbers stay whole, everything else gets one decimal.
+    /// Formats values the way findings quote them: "72 bpm", "7.5 h".
+    /// Whole numbers stay whole, rest get one decimal.
     func formattedWithUnit(_ value: Double) -> String {
         let number = value == value.rounded()
             ? String(Int(value))

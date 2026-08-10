@@ -61,7 +61,7 @@ enum SampleData {
         .hrv: 62,
         .steps: 8600,
         .activeEnergy: 520,
-        .basalEnergy: 1650,
+        .basalEnergy: 1950,
         .vo2Max: 46,
         .respiratoryRate: 14.5,
         .wristTemperature: 35.6,

@@ -1,8 +1,8 @@
 import Foundation
 import HealthKit
 
-/// The app's only door to Apple Health. Everything else reads the local cache,
-/// so this is the single place raw health samples are ever touched.
+/// App's only door to Apple Health. Everything else reads the local cache, so
+/// this is the one place raw health samples are ever touched.
 final class HealthKitService {
     private let store = HKHealthStore()
 
@@ -13,8 +13,7 @@ final class HealthKitService {
     }
 
     /// Everything the app reads, asked for in one go on first launch.
-    /// Keep this list to types actually queried: each one is a row the user
-    /// has to approve.
+    /// Keep to types actually queried: each is a row the user must approve.
     private let readHealthTypes: Set<HKObjectType> = [
         HKQuantityType(.heartRate),
         HKQuantityType(.restingHeartRate),
@@ -41,17 +40,16 @@ final class HealthKitService {
         return calendar.date(byAdding: .day, value: -daysBack, to: calendar.startOfDay(for: .now))
     }
 
-    /// Nights of sleep from a given date, oldest first. Any number is fine, one
-    /// night works as well as ninety. Errors and missing data both come back as
-    /// an empty list, never as a failure.
+    /// Nights of sleep from a given date, oldest first. Any number is fine:
+    /// one night works as well as ninety. Errors and missing data both come
+    /// back as an empty list, never a failure.
     func fetchSleepNights(from windowStart: Date) async -> [SleepNight] {
         let samples = (try? await fetchAsleepSamples(from: windowStart)) ?? []
         return SleepNightAggregator.nights(from: samples)
     }
 
-    /// Sleep samples as plain values. Only time actually asleep survives:
-    /// in-bed and awake are dropped right here, so nothing downstream has to
-    /// think about them.
+    /// Sleep samples as plain values. Only time actually asleep survives.
+    /// In-bed and awake get dropped here, so nothing downstream sees them.
     private func fetchAsleepSamples(from windowStart: Date) async throws -> [SleepSample] {
         let sortByStart = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
         let samples: [HKSample] = try await withCheckedThrowingContinuation { continuation in
@@ -91,8 +89,8 @@ final class HealthKitService {
         }
     }
 
-    /// What changed for one sample type since we last looked. The intervals say
-    /// which days need recomputing. The anchor is the bookmark to hand back next
+    /// What changed for one sample type since we last looked. Intervals say
+    /// which days need recomputing. Anchor is the bookmark to hand back next
     /// time, so we only ask for what is new.
     struct SampleChanges {
         let newSampleIntervals: [DateInterval]
@@ -147,8 +145,8 @@ final class HealthKitService {
     }
 
     /// One metric's samples bucketed into calendar days, each day collapsed to
-    /// a single number by that metric's own rule: steps add up, heart rate
-    /// averages. SyncService calls this to rebuild only the days that changed.
+    /// one number by that metric's own rule: steps add up, heart rate averages.
+    /// SyncService calls this to rebuild only the days that changed.
     func dailySeries(for kind: MetricKind, from windowStart: Date) async throws -> [DatedValue] {
         let options: HKStatisticsOptions = kind.aggregation == .sum ? .cumulativeSum : .discreteAverage
         let query = HKStatisticsCollectionQuery(

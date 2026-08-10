@@ -3,9 +3,9 @@ import SwiftData
 
 /// Keeps the local cache in step with Apple Health.
 ///
-/// Asks each type what changed, rebuilds only those days, then saves the
-/// bookmark. The first run has no bookmark, so everything counts as changed
-/// and takes the same code path.
+/// Asks each type what changed, rebuilds only those days, saves the bookmark.
+/// First run has no bookmark, so everything counts as changed and takes the
+/// same code path.
 ///
 /// Everything else in the app reads the cache. This is the only thing that
 /// writes it.
@@ -28,7 +28,7 @@ final class SyncService {
     }
 
     /// One pass over every metric, then sleep. A type that fails keeps its old
-    /// bookmark and simply tries again next launch.
+    /// bookmark and tries again next launch.
     func sync() async {
         for kind in MetricKind.allCases {
             try? await syncMetric(kind)
@@ -38,9 +38,9 @@ final class SyncService {
         try? context.save()
     }
 
-    /// Brings one metric up to date. Records are replaced before the bookmark
-    /// moves, so a crash halfway through just means the same changes get
-    /// reported again next launch.
+    /// Brings one metric up to date. Records get replaced before the bookmark
+    /// moves, so a crash halfway just means the same changes get reported
+    /// again next launch.
     private func syncMetric(_ kind: MetricKind) async throws {
         let existing = anchorRecord(for: kind.rawValue)
         let changes = try await healthKit.fetchMetricChanges(
@@ -86,8 +86,8 @@ final class SyncService {
         return start
     }
 
-    /// Swaps cached days from a start date for freshly computed ones. Delete
-    /// then insert, so a day that lost all its data actually disappears.
+    /// Swaps cached days from a start date for freshly computed ones.
+    /// Delete then insert, so a day that lost all its data actually goes.
     private func replaceMetricRecords(for kind: MetricKind, from start: Date, with series: [DatedValue]) {
         let key = kind.rawValue
         let stale = FetchDescriptor<DailyMetricRecord>(
