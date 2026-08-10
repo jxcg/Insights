@@ -46,8 +46,7 @@ struct MetricDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    /// A shape check over the same days the table lists. Bars for metrics that
-    /// add up, a line for ones that average.
+    // bars for metrics that add up, a line for ones that average
     private var chart: some View {
         Chart(records) { record in
             if kind.aggregation == .sum {

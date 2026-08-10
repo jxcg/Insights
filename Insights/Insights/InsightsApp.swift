@@ -23,9 +23,9 @@ struct InsightsApp: App {
         .modelContainer(Self.container)
     }
 
-    /// The store the whole app reads. Running with the `-sampleData` launch
-    /// argument swaps it for invented history, so the app can be driven end to
-    /// end on a simulator with no phone and no Health authorisation.
+    // running with the `-sampleData` launch argument swaps this for invented
+    // history, so the app can be driven end to end on a simulator with no
+    // phone and no Health authorisation
     @MainActor
     private static let container: ModelContainer = {
         #if DEBUG

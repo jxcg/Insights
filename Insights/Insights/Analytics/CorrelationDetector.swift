@@ -6,20 +6,19 @@ import Foundation
 /// sleep, higher HRV", against the user's own history. Keeps only pairings
 /// that hold up.
 enum CorrelationDetector {
-    /// How tightly two metrics must move together to be worth reporting, as a
-    /// Pearson r (0 unrelated, 1 perfect lockstep). Main sensitivity knob.
+    // how tightly two metrics must move together to be worth reporting, as a
+    // Pearson r (0 unrelated, 1 perfect lockstep). Main sensitivity knob.
     static let correlationThreshold = 0.4
 
-    /// Fewest day pairs a reported link may rest on. Below this even a tight r
-    /// is mostly luck, so the pairing stays quiet however good it looks.
+    // below this even a tight r is mostly luck, so the pairing stays quiet
+    // however good it looks
     static let minimumPairCount = 14
 
-    /// Days of history pairs are drawn from.
     static let windowDays = 90
 
-    /// Pairs needed to count as fully evidenced. Well under the 90-day window
-    /// on purpose: both metrics must be recorded on the same day, and real
-    /// history rarely offers 90 of those.
+    // pairs needed to count as fully evidenced. Well under the window on
+    // purpose: both metrics must be recorded on the same day, and real history
+    // rarely offers that many.
     static let pairsForFullConfidence = 45
 
     /// One relationship worth checking. Written by hand, not generated from
@@ -28,17 +27,15 @@ enum CorrelationDetector {
     struct Hypothesis {
         let driver: AnalyticMetric
         let outcome: AnalyticMetric
-        /// Days between a driver reading and the outcome it pairs with.
-        /// Sleep files under the morning it ended, so a night and the day it
-        /// leads into already share a date. Only a real overnight gap needs 1.
+        // sleep files under the morning it ended, so a night and the day it
+        // leads into already share a date. Only a real overnight gap needs 1.
         let lagDays: Int
-        /// The driver being higher, worded to read after both "on days with"
-        /// and "the day after".
+        // worded to read after both "on days with" and "the day after"
         let higherDriverPhrase: String
     }
 
-    /// Relationships worth looking for. Active energy stands in for training
-    /// load, since workouts are not read from Apple Health.
+    // active energy stands in for training load, since workouts are not read
+    // from Apple Health
     static let hypotheses: [Hypothesis] = [
         Hypothesis(
             driver: .sleepDuration,
@@ -57,8 +54,8 @@ enum CorrelationDetector {
             higherDriverPhrase: "a higher resting heart rate"),
     ]
 
-    /// One Finding per hypothesis clearing both minimums.
-    /// A hypothesis whose two metrics barely overlap produces nothing.
+    /// One Finding per hypothesis clearing both minimums. A hypothesis whose
+    /// two metrics barely overlap produces nothing.
     static func detect(
         metrics: [DailyMetricRecord],
         nights: [SleepNightRecord],
@@ -92,8 +89,8 @@ enum CorrelationDetector {
         }
     }
 
-    /// Pairs one hypothesis' two series. Reports it only if the link is both
-    /// tight enough and built on enough days.
+    // reports a hypothesis only if the link is both tight enough and built on
+    // enough days
     private static func finding(
         for hypothesis: Hypothesis,
         driverSeries: [DatedValue],
@@ -116,16 +113,15 @@ enum CorrelationDetector {
         return makeFinding(for: hypothesis, pairs: pairs, correlation: correlation)
     }
 
-    /// One day's driver value plus the outcome value paired with it.
     private struct DayPair {
         let outcomeDay: Date
         let driverValue: Double
         let outcomeValue: Double
     }
 
-    /// Pairs each outcome day with the driver reading `lagDays` earlier.
-    /// Keeps only days where both sides have data. Window hangs off the
-    /// outcome, so a driver day just before it still counts.
+    // pairs each outcome day with the driver reading `lagDays` earlier, keeping
+    // only days where both sides have data. Window hangs off the outcome, so a
+    // driver day just before it still counts.
     private static func dayPairs(
         for hypothesis: Hypothesis,
         driverSeries: [DatedValue],
@@ -185,8 +181,8 @@ enum CorrelationDetector {
         return crossDeviation / (driverVariation * outcomeVariation).squareRoot()
     }
 
-    /// Packs a surviving link into a Finding. Direction is what the outcome
-    /// does when the driver goes up, so negative r reads as falling.
+    // direction is what the outcome does when the driver goes up, so negative
+    // r reads as falling
     private static func makeFinding(
         for hypothesis: Hypothesis,
         pairs: [DayPair],
@@ -221,8 +217,7 @@ enum CorrelationDetector {
             plainStatement: "\(outcomeName) tends to be \(higherOrLower) \(whenPhrase).")
     }
 
-    /// How timing reads in a sentence, so a same-day link is never worded as
-    /// if one day followed the other.
+    // so a same-day link is never worded as if one day followed the other
     private static func lagPhrase(forLagDays lagDays: Int) -> String {
         switch lagDays {
         case 0: "on days with"
@@ -231,8 +226,8 @@ enum CorrelationDetector {
         }
     }
 
-    /// Two decimals only. A third claims more precision than a few dozen day
-    /// pairs can support.
+    // two decimals only: a third claims more precision than a few dozen day
+    // pairs can support
     private static func formatted(_ correlation: Double) -> String {
         String(format: "%.2f", correlation)
     }

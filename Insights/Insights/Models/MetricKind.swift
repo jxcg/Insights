@@ -30,7 +30,7 @@ enum MetricKind: String, CaseIterable, Identifiable {
         }
     }
 
-    /// The Apple Health type this metric comes from.
+    // the Apple Health type this metric comes from
     var quantityType: HKQuantityType {
         switch self {
         case .heartRate: HKQuantityType(.heartRate)
@@ -45,8 +45,7 @@ enum MetricKind: String, CaseIterable, Identifiable {
         }
     }
 
-    /// How a day's samples collapse into one number. Things you count add up;
-    /// things you measure at a moment average out.
+    // things you count add up; things you measure at a moment average out
     enum Aggregation {
         case average
         case sum
@@ -59,7 +58,7 @@ enum MetricKind: String, CaseIterable, Identifiable {
         }
     }
 
-    /// The unit daily values come back in.
+    // the unit daily values come back in
     var unit: HKUnit {
         switch self {
         case .heartRate, .restingHeartRate, .respiratoryRate:

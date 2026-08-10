@@ -11,9 +11,9 @@ import SwiftData
 /// Deliberately not random: the same numbers every launch, so a screenshot
 /// taken today matches one taken next week and two testers see the same app.
 enum SampleData {
-    /// Whether this run is on invented data. Set by the `-sampleData` launch
-    /// argument in the scheme; the app says so on screen when it is true, so a
-    /// tester can never mistake sample numbers for their own.
+    // set by the `-sampleData` launch argument in the scheme; the app says so
+    // on screen when it is true, so a tester can never mistake sample numbers
+    // for their own
     static var isEnabled: Bool {
         ProcessInfo.processInfo.arguments.contains("-sampleData")
     }
@@ -30,7 +30,7 @@ enum SampleData {
         return container
     }
 
-    /// One record per metric per day, plus a night's sleep, ending today.
+    // one record per metric per day, plus a night's sleep, ending today
     static func populate(_ context: ModelContext, days: Int = 90) {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: .now)
@@ -54,7 +54,7 @@ enum SampleData {
         try? context.save()
     }
 
-    /// Roughly plausible resting levels for a reasonably fit adult.
+    // roughly plausible resting levels for a reasonably fit adult
     private static let baselines: [MetricKind: Double] = [
         .heartRate: 68,
         .restingHeartRate: 54,
@@ -67,9 +67,9 @@ enum SampleData {
         .wristTemperature: 35.6,
     ]
 
-    /// A baseline nudged by a repeatable day-to-day wobble, then pushed off it
-    /// for the last three days. Without that push the detectors find nothing
-    /// and every screen shows an empty state.
+    // a baseline nudged by a repeatable day-to-day wobble, then pushed off it
+    // for the last three days. Without that push the detectors find nothing
+    // and every screen shows an empty state.
     private static func value(for kind: MetricKind, daysAgo: Int, roughPatch: Bool) -> Double {
         let baseline = baselines[kind] ?? 1
         let wobble = sin(Double(daysAgo) * 1.7) * 0.04
@@ -85,7 +85,7 @@ enum SampleData {
         return baseline * (1 + wobble + roughPatchShift)
     }
 
-    /// A night filed under the morning it ended, short during the rough patch.
+    // a night filed under the morning it ended, short during the rough patch
     private static func night(wakeDay: Date, daysAgo: Int, short: Bool) -> SleepNight {
         let hours = (short ? 5.6 : 7.4) + sin(Double(daysAgo) * 1.1) * 0.4
         let asleep = hours * 3600

@@ -5,12 +5,12 @@ import Foundation
 /// Each detector measures in its own units: standard deviations, percent,
 /// correlation. This puts them on one scale and cuts the day to a short list.
 enum FindingRanker {
-    /// How many findings a day can hold. Below the line is never narrated,
-    /// which makes this the sharpest knob in the engine.
+    // below the line is never narrated, which makes this the sharpest knob in
+    // the engine
     static let maximumFindings = 5
 
-    /// What a warning is worth against merely interesting news.
-    /// Small on purpose: settles near-ties, nothing more.
+    // what a warning is worth against merely interesting news. Small on
+    // purpose: settles near-ties, nothing more.
     static let cautionaryWeight = 1.25
 
     /// Picks the day's short list. Every metric gets one slot before any metric
@@ -61,8 +61,7 @@ enum FindingRanker {
         return 1 + log2(multiplesOfBar)
     }
 
-    /// Threshold each detector refuses to report below. Read from the detectors
-    /// themselves, so tuning one moves the ranking with it.
+    // read from the detectors themselves, so tuning one moves the ranking with it
     private static func qualifyingMagnitude(for type: Finding.FindingType) -> Double {
         switch type {
         case .anomaly: AnomalyDetector.zScoreThreshold
@@ -71,8 +70,8 @@ enum FindingRanker {
         }
     }
 
-    /// What patchy history costs. Half the score is earned outright, half is on
-    /// offer for evidence, so thin data still competes instead of vanishing.
+    // half the score is earned outright, half is on offer for evidence, so thin
+    // data still competes instead of vanishing
     private static func confidenceWeight(of finding: Finding) -> Double {
         0.5 + 0.5 * finding.confidence
     }
@@ -81,8 +80,8 @@ enum FindingRanker {
         finding.tone == .cautionary ? cautionaryWeight : 1
     }
 
-    /// Best first, every tie broken by something fixed. A list that reshuffles
-    /// itself each morning reads as untrustworthy.
+    // best first, every tie broken by something fixed. A list that reshuffles
+    // itself each morning reads as untrustworthy.
     private static func isRankedAbove(_ lhs: Finding, _ rhs: Finding) -> Bool {
         let leftScore = score(lhs)
         let rightScore = score(rhs)
@@ -98,8 +97,8 @@ enum FindingRanker {
         return (lhs.drivingMetric?.displayName ?? "") < (rhs.drivingMetric?.displayName ?? "")
     }
 
-    /// Who speaks first at equal scores: yesterday's news, then where things
-    /// are heading, then a relationship that was true last week too.
+    // who speaks first at equal scores: yesterday's news, then where things are
+    // heading, then a relationship that was true last week too
     private static func stageOrder(of type: Finding.FindingType) -> Int {
         switch type {
         case .anomaly: 0

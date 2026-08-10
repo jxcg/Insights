@@ -4,8 +4,7 @@ import Foundation
 /// these and the aggregator turns them into nights. Time in bed and time awake
 /// never make it this far.
 struct SleepSample {
-    /// Which kind of sleep. A watch reports core, deep, or REM; older data may
-    /// only say "asleep".
+    // a watch reports core, deep or REM; older data may only say "asleep"
     enum Stage {
         case unspecified
         case core

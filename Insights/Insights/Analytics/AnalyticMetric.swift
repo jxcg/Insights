@@ -41,9 +41,9 @@ enum AnalyticMetric: Hashable {
     /// Good news, bad news, or just news. Set in Swift so AI can't narrate a
     /// warning sign cheerfully.
     ///
-    /// `sustained` is true for a weeks-long trend, false for one odd day.
-    /// Only changes activity: steps sliding for weeks earns a caution, one
-    /// quiet day does not.
+    /// `sustained` is true for a weeks-long trend, false for one odd day. Only
+    /// changes activity: steps sliding for weeks earns a caution, one quiet
+    /// day does not.
     func tone(direction: Finding.Direction, sustained: Bool) -> Finding.Tone {
         switch self {
         case .quantity(let kind):
@@ -63,8 +63,8 @@ enum AnalyticMetric: Hashable {
         }
     }
 
-    /// Formats values the way findings quote them: "72 bpm", "7.5 h".
-    /// Whole numbers stay whole, rest get one decimal.
+    // how findings quote a value: "72 bpm", "7.5 h". Whole numbers stay whole,
+    // the rest get one decimal.
     func formattedWithUnit(_ value: Double) -> String {
         let number = value == value.rounded()
             ? String(Int(value))

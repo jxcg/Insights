@@ -3,16 +3,16 @@ import Foundation
 /// One night of sleep, summarised. End of the sleep pipeline, and the shape
 /// both the engine and the screens read.
 struct SleepNight {
-    /// The morning's date, at midnight.
+    // the morning's date, at midnight
     let wakeDay: Date
     let start: Date
     let end: Date
 
-    /// Seconds actually asleep, with overlaps already merged out.
+    // seconds actually asleep, with overlaps already merged out
     let asleep: TimeInterval
 
-    /// Seconds of deep and REM sleep. nil means the night recorded no stages
-    /// at all, so unknown rather than zero.
+    // seconds of deep and REM sleep. nil means the night recorded no stages at
+    // all, so unknown rather than zero.
     let deep: TimeInterval?
     let rem: TimeInterval?
 

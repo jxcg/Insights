@@ -11,7 +11,7 @@ struct ContentView: View {
 
     @Environment(\.modelContext) private var modelContext
 
-    /// Live views of the cache. They redraw themselves whenever a sync writes.
+    // live views of the cache; they redraw themselves whenever a sync writes
     @Query private var metricRecords: [DailyMetricRecord]
     @Query(sort: \SleepNightRecord.wakeDay) private var nightRecords: [SleepNightRecord]
     @Query private var anchors: [SyncAnchorRecord]
@@ -25,8 +25,8 @@ struct ContentView: View {
         }
     }
 
-    /// The screen itself: header, sync button, and what the cache holds. Each
-    /// row links through to that metric's raw day-by-day table.
+    // header, sync button, and what the cache holds. Each row links through to
+    // that metric's raw day-by-day table.
     private var dashboard: some View {
         VStack(spacing: 16) {
             HStack {
@@ -133,10 +133,7 @@ struct ContentView: View {
         .padding()
     }
 
-    /// What the status line says. Syncing wins over errors, errors over the
-    /// cache's age. A last-synced time surviving a relaunch means the cache
-    /// is doing its job.
-    /// True only on a `-sampleData` run. Always false in a release build.
+    // true only on a `-sampleData` run, always false in a release build
     private var isShowingSampleData: Bool {
         #if DEBUG
         SampleData.isEnabled
@@ -145,6 +142,8 @@ struct ContentView: View {
         #endif
     }
 
+    // syncing wins over errors, errors over the cache's age. A last-synced
+    // time surviving a relaunch means the cache is doing its job.
     private var status: String {
         if isShowingSampleData {
             return "Sample data — not real Health data"
@@ -161,21 +160,19 @@ struct ContentView: View {
         return "Not connected"
     }
 
-    /// How many findings today's cache is worth, once ranked and cut to size.
-    /// Zero is a real answer here: a quiet day genuinely has nothing to say.
+    // zero is a real answer here: a quiet day genuinely has nothing to say
     private var rankedFindingCount: Int {
         InsightEngine.dailyFindings(metrics: metricRecords, nights: nightRecords).count
     }
 
-    /// How many days each metric has, straight from the cache.
     private var dayCounts: [(metric: MetricKind, days: Int)] {
         MetricKind.allCases.map { kind in
             (metric: kind, days: metricRecords.filter { $0.metricKind == kind.rawValue }.count)
         }
     }
 
-    /// Days complete enough to have earned a total, the same join the detail
-    /// screen shows.
+    // days complete enough to have earned a total, the same join the detail
+    // screen shows
     private var totalEnergyDays: Int {
         TotalEnergy.dailyTotals(
             active: metricRecords.filter { $0.metricKind == MetricKind.activeEnergy.rawValue },
@@ -183,8 +180,8 @@ struct ContentView: View {
         ).filter(\.hasCompleteEnergyRecord).count
     }
 
-    /// One line to eyeball against the Health app: how many nights, plus the
-    /// most recent one.
+    // one line to eyeball against the Health app: how many nights, plus the
+    // most recent one
     private var sleepSummary: String {
         guard let latest = nightRecords.last?.night else {
             return "Not Available"

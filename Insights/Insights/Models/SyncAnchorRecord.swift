@@ -6,10 +6,10 @@ import SwiftData
 /// never synced that type, so the next sync fetches the lot.
 @Model
 final class SyncAnchorRecord {
-    /// Which sample type this bookmark belongs to: "heartRate", "sleep".
+    // which sample type this bookmark belongs to: "heartRate", "sleep"
     var typeKey: String
 
-    /// The anchor packed into bytes, since SwiftData cannot store it directly.
+    // the anchor packed into bytes, since SwiftData cannot store it directly
     var anchorData: Data
 
     var lastSynced: Date
