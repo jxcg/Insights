@@ -1,20 +1,11 @@
-//
-//  ContentView.swift
-//  Insights
-//
-//  Created by Joshua Ng on 11/07/2026.
-//
-
 import SwiftUI
 import SwiftData
 
-/// A window onto the cache, built to prove the data underneath is right before
-/// any of it gets interpreted. On launch it shows whatever is already stored
-/// and touches Apple Health not at all. The sync button is the only thing
-/// that does.
+/// A window onto the cache, to prove the data underneath is right before any
+/// of it gets interpreted.
 ///
-/// This is scaffolding. The real Today screen replaces it once findings exist
-/// to show.
+/// On launch it shows what is already stored and touches Apple Health not at
+/// all. The sync button is the only thing that does.
 struct ContentView: View {
     private let healthKit = HealthKitService()
 
