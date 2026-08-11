@@ -5,21 +5,19 @@ import Foundation
 /// Anomaly detector looks at one day. This draws a line through many days and
 /// reports metrics genuinely drifting.
 enum TrendDetector {
-    /// Window lengths to check, longest first. Each catches a different pace:
-    /// a fast slide shows in 7 days, a slow one only over 90. Longer drift is
-    /// more sustained, so the first window to qualify wins.
+    // longest first: a fast slide shows in 7 days, a slow one only over 90.
+    // Longer drift is more sustained, so the first window to qualify wins.
     static let windowDaysOptions = [90, 21, 7]
 
-    /// How far a metric must move across a window, as a fraction of that
-    /// window's average. 0.05 is 5%. Main sensitivity knob.
+    // how far a metric must move across a window, as a fraction of that
+    // window's average. Main sensitivity knob.
     static let relativeChangeThreshold = 0.05
 
-    /// How much of a window needs real readings before its length is honest.
-    /// Three readings across 90 days is not a 90-day trend.
+    // three readings across 90 days is not a 90-day trend
     static let minimumCoverage = 0.5
 
-    /// One Finding per metric drifting past the threshold.
-    /// Each measured up to its own last complete day.
+    /// One Finding per metric drifting past the threshold, each measured up to
+    /// its own last complete day.
     static func detect(
         metrics: [DailyMetricRecord],
         nights: [SleepNightRecord],
@@ -41,8 +39,8 @@ enum TrendDetector {
         return findings.sorted { $0.metric.displayName < $1.metric.displayName }
     }
 
-    /// Most sustained drift a metric shows: longest window with enough data
-    /// that moves enough to matter.
+    // most sustained drift a metric shows: longest window with enough data
+    // that moves enough to matter
     private static func finding(
         for metric: AnalyticMetric,
         in series: [DatedValue],
@@ -64,14 +62,12 @@ enum TrendDetector {
         return nil
     }
 
-    /// Fitted line, reduced to what a Finding needs.
     private struct Trend {
-        /// How far the line travels, as a signed fraction of the window's
-        /// average. This is what meets the threshold.
+        // how far the line travels, as a signed fraction of the window's
+        // average. This is what meets the threshold.
         let relativeChange: Double
         let mean: Double
         let latestValue: Double
-        /// Share of the window's days that had a reading, 0 to 1.
         let coverage: Double
     }
 
@@ -135,7 +131,6 @@ enum TrendDetector {
             coverage: count / Double(windowDays))
     }
 
-    /// Turns a qualifying drift into a Finding. Direction from the slope's sign.
     private static func makeFinding(
         metric: AnalyticMetric,
         windowDays: Int,

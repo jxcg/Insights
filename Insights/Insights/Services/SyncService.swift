@@ -15,11 +15,10 @@ final class SyncService {
     private let context: ModelContext
     private let calendar = Calendar.current
 
-    /// Days of history the cache keeps. A ceiling, not a floor: the engine
-    /// works with far less than this.
+    // a ceiling, not a floor: the engine works with far less than this
     private let windowDays = 90
 
-    /// Bookmark key for sleep. Metrics use their own MetricKind name.
+    // bookmark key for sleep; metrics use their own MetricKind name
     private let sleepKey = "sleep"
 
     init(healthKit: HealthKitService, context: ModelContext) {
@@ -38,9 +37,8 @@ final class SyncService {
         try? context.save()
     }
 
-    /// Brings one metric up to date. Records get replaced before the bookmark
-    /// moves, so a crash halfway just means the same changes get reported
-    /// again next launch.
+    // records get replaced before the bookmark moves, so a crash halfway just
+    // means the same changes get reported again next launch
     private func syncMetric(_ kind: MetricKind) async throws {
         let existing = anchorRecord(for: kind.rawValue)
         let changes = try await healthKit.fetchMetricChanges(
@@ -53,9 +51,9 @@ final class SyncService {
         saveAnchor(changes.anchorData, for: kind.rawValue, existing: existing)
     }
 
-    /// Brings sleep up to date. Nights are rebuilt from the day before the
-    /// earliest change: a night's samples can start the previous evening, and
-    /// that extra day keeps sessions whole.
+    // nights are rebuilt from the day before the earliest change: a night's
+    // samples can start the previous evening, and that extra day keeps
+    // sessions whole
     private func syncSleep() async throws {
         let existing = anchorRecord(for: sleepKey)
         let changes = try await healthKit.fetchSleepChanges(
@@ -70,10 +68,10 @@ final class SyncService {
         saveAnchor(changes.anchorData, for: sleepKey, existing: existing)
     }
 
-    /// Which day to rebuild from. nil means nothing changed at all.
-    ///
-    /// Deletions arrive without dates, so they cast a net over the last two
-    /// days. Deleting anything older than that needs a full resync to show up.
+    // which day to rebuild from; nil means nothing changed at all.
+    //
+    // Deletions arrive without dates, so they cast a net over the last two
+    // days. Deleting anything older than that needs a full resync to show up.
     private func recomputeStart(for changes: HealthKitService.SampleChanges) -> Date? {
         var start: Date?
         if let earliestNew = changes.newSampleIntervals.map(\.start).min() {
@@ -86,8 +84,7 @@ final class SyncService {
         return start
     }
 
-    /// Swaps cached days from a start date for freshly computed ones.
-    /// Delete then insert, so a day that lost all its data actually goes.
+    // delete then insert, so a day that lost all its data actually goes
     private func replaceMetricRecords(for kind: MetricKind, from start: Date, with series: [DatedValue]) {
         let key = kind.rawValue
         let stale = FetchDescriptor<DailyMetricRecord>(
@@ -101,7 +98,7 @@ final class SyncService {
         }
     }
 
-    /// The same swap for sleep nights, filed under the morning they ended.
+    // the same swap for sleep nights, filed under the morning they ended
     private func replaceNightRecords(from start: Date, with nights: [SleepNight]) {
         let stale = FetchDescriptor<SleepNightRecord>(
             predicate: #Predicate { $0.wakeDay >= start })
@@ -119,7 +116,7 @@ final class SyncService {
         return ((try? context.fetch(descriptor)) ?? []).first
     }
 
-    /// The bookmark only ever moves once the records it covers are safely in.
+    // the bookmark only ever moves once the records it covers are safely in
     private func saveAnchor(_ data: Data, for key: String, existing: SyncAnchorRecord?) {
         if let existing {
             existing.anchorData = data
@@ -129,7 +126,7 @@ final class SyncService {
         }
     }
 
-    /// Drops cached days that have slid out the back of the window.
+    // drops cached days that have slid out the back of the window
     private func prune() {
         guard let cutoff = calendar.date(byAdding: .day, value: -windowDays, to: calendar.startOfDay(for: .now)) else {
             return

@@ -11,7 +11,7 @@ final class SleepNightRecord {
     var end: Date
     var asleep: TimeInterval
 
-    /// nil means the night recorded no stages, so unknown rather than zero.
+    // nil means the night recorded no stages, so unknown rather than zero
     var deep: TimeInterval?
     var rem: TimeInterval?
 
@@ -24,7 +24,7 @@ final class SleepNightRecord {
         rem = night.rem
     }
 
-    /// Back to the plain value type the rest of the app works with.
+    // back to the plain value type the rest of the app works with
     var night: SleepNight {
         SleepNight(wakeDay: wakeDay, start: start, end: end, asleep: asleep, deep: deep, rem: rem)
     }

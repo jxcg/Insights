@@ -27,8 +27,8 @@ struct FindingsView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    /// One finding as the user would hear it, over the numbers that earned it
-    /// its place. The score line is for tuning only.
+    // one finding as the user would hear it, over the numbers that earned it
+    // its place. The score line is for tuning only.
     private func row(position: Int, finding: Finding) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline) {
@@ -47,7 +47,7 @@ struct FindingsView: View {
         .padding(.vertical, 2)
     }
 
-    /// Why this finding sits where it does, in the terms the ranker used.
+    // why this finding sits where it does, in the terms the ranker used
     private func workings(for finding: Finding) -> String {
         let score = String(format: "%.2f", FindingRanker.score(finding))
         let strength = String(format: "%.2f", FindingRanker.strength(of: finding))

@@ -12,17 +12,17 @@ struct DatedValue {
 struct MetricBaseline {
     let windowDays: Int
     let mean: Double
-    /// How much it normally varies. nil below 2 readings: one number has
-    /// nothing to vary against.
+
+    // nil below 2 readings: one number has nothing to vary against
     let standardDeviation: Double?
     let sampleCount: Int
-    /// How full the window was, 0 to 1: readings divided by window length.
-    /// 15 readings over 30 days is 0.5. Thin history lowers confidence
-    /// instead of hiding findings.
+
+    // how full the window was, 0 to 1. Thin history lowers confidence instead
+    // of hiding findings.
     let coverage: Double
 
-    /// Normal range over the `windowDays` ending on `endDay`.
-    /// One day of data is enough. nil only when the window is empty.
+    /// Normal range over the `windowDays` ending on `endDay`. One day of data
+    /// is enough; nil only when the window is empty.
     static func compute(
         over series: [DatedValue],
         windowDays: Int,

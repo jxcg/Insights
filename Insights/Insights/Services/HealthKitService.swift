@@ -6,14 +6,14 @@ import HealthKit
 final class HealthKitService {
     private let store = HKHealthStore()
 
-    /// False on devices with no health data at all, such as iPad. Callers hide
-    /// the health UI entirely when this is false.
+    // false on devices with no health data at all, such as iPad; callers hide
+    // the health UI entirely when this is false
     static var isAvailable: Bool {
         HKHealthStore.isHealthDataAvailable()
     }
 
-    /// Everything the app reads, asked for in one go on first launch.
-    /// Keep to types actually queried: each is a row the user must approve.
+    // asked for in one go on first launch. Keep to types actually queried:
+    // each is a row the user must approve.
     private let readHealthTypes: Set<HKObjectType> = [
         HKQuantityType(.heartRate),
         HKQuantityType(.restingHeartRate),
@@ -34,22 +34,20 @@ final class HealthKitService {
         try await store.requestAuthorization(toShare: [], read: readHealthTypes)
     }
 
-    /// Midnight N days back, where every trailing-window query starts.
+    // midnight N days back, where every trailing-window query starts
     private func windowStart(daysBack: Int) -> Date? {
         let calendar = Calendar.current
         return calendar.date(byAdding: .day, value: -daysBack, to: calendar.startOfDay(for: .now))
     }
 
-    /// Nights of sleep from a given date, oldest first. Any number is fine:
-    /// one night works as well as ninety. Errors and missing data both come
-    /// back as an empty list, never a failure.
+    // errors and missing data both come back as an empty list, never a failure
     func fetchSleepNights(from windowStart: Date) async -> [SleepNight] {
         let samples = (try? await fetchAsleepSamples(from: windowStart)) ?? []
         return SleepNightAggregator.nights(from: samples)
     }
 
-    /// Sleep samples as plain values. Only time actually asleep survives.
-    /// In-bed and awake get dropped here, so nothing downstream sees them.
+    // only time actually asleep survives; in-bed and awake get dropped here,
+    // so nothing downstream sees them
     private func fetchAsleepSamples(from windowStart: Date) async throws -> [SleepSample] {
         let sortByStart = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
         let samples: [HKSample] = try await withCheckedThrowingContinuation { continuation in
@@ -77,8 +75,7 @@ final class HealthKitService {
         }
     }
 
-    /// Apple's raw category number turned into a sleep stage. nil means it was
-    /// not sleep at all, so in bed or awake.
+    // nil means it was not sleep at all, so in bed or awake
     private static func asleepStage(for categoryValue: Int) -> SleepSample.Stage? {
         switch HKCategoryValueSleepAnalysis(rawValue: categoryValue) {
         case .asleepUnspecified: .unspecified
@@ -89,28 +86,27 @@ final class HealthKitService {
         }
     }
 
-    /// What changed for one sample type since we last looked. Intervals say
-    /// which days need recomputing. Anchor is the bookmark to hand back next
-    /// time, so we only ask for what is new.
+    // intervals say which days need recomputing. Anchor is the bookmark to
+    // hand back next time, so we only ask for what is new.
     struct SampleChanges {
         let newSampleIntervals: [DateInterval]
         let deletedCount: Int
         let anchorData: Data
     }
 
-    /// What is new for one metric. A nil anchor means we have never synced it.
+    // a nil anchor means we have never synced this metric
     func fetchMetricChanges(for kind: MetricKind, since anchorData: Data?, daysBack: Int = 90) async throws -> SampleChanges {
         try await fetchChanges(for: kind.quantityType, since: anchorData, daysBack: daysBack)
     }
 
-    /// What is new for sleep. Same bookmark idea as the metrics.
+    // same bookmark idea as the metrics
     func fetchSleepChanges(since anchorData: Data?, daysBack: Int = 90) async throws -> SampleChanges {
         try await fetchChanges(for: HKCategoryType(.sleepAnalysis), since: anchorData, daysBack: daysBack)
     }
 
-    /// Apple's "what is new since this bookmark" query. With no bookmark it
-    /// returns everything, after that only the changes. Deletions come back as
-    /// bare ids with no dates attached, so callers only ever get a count.
+    // Apple's "what is new since this bookmark" query. With no bookmark it
+    // returns everything, after that only the changes. Deletions come back as
+    // bare ids with no dates attached, so callers only ever get a count.
     private func fetchChanges(for sampleType: HKSampleType, since anchorData: Data?, daysBack: Int) async throws -> SampleChanges {
         guard let windowStart = windowStart(daysBack: daysBack) else {
             throw HealthKitServiceError.noResult
@@ -146,7 +142,6 @@ final class HealthKitService {
 
     /// One metric's samples bucketed into calendar days, each day collapsed to
     /// one number by that metric's own rule: steps add up, heart rate averages.
-    /// SyncService calls this to rebuild only the days that changed.
     func dailySeries(for kind: MetricKind, from windowStart: Date) async throws -> [DatedValue] {
         let options: HKStatisticsOptions = kind.aggregation == .sum ? .cumulativeSum : .discreteAverage
         let query = HKStatisticsCollectionQuery(
@@ -184,7 +179,7 @@ final class HealthKitService {
     }
 }
 
-/// Thrown when Apple Health hands back neither a result nor an error.
+// thrown when Apple Health hands back neither a result nor an error
 enum HealthKitServiceError: Error {
     case noResult
 }

@@ -5,11 +5,10 @@ import Foundation
 /// Compares each metric's last complete day to its normal range.
 /// Far enough outside becomes a Finding.
 enum AnomalyDetector {
-    /// How far from normal before we mention it, in standard deviations
-    /// ("z-score"). 1.5 flags about 1 day in 7. Main sensitivity knob.
+    // how far from normal before we mention it, in standard deviations
+    // ("z-score"). 1.5 flags about 1 day in 7. Main sensitivity knob.
     static let zScoreThreshold = 1.5
 
-    /// Days of history the judged value is compared against.
     static let baselineWindowDays = 30
 
     /// Judges every metric's last complete day. Stays silent when a metric has
@@ -35,12 +34,12 @@ enum AnomalyDetector {
         return findings.sorted { $0.metric.displayName < $1.metric.displayName }
     }
 
-    /// How unusual one day was, as a z-score: how many standard deviations it
-    /// sits from the recent average.
-    ///
-    /// Judged day is left out of its own baseline on purpose. Otherwise a big
-    /// spike drags up the average it is measured against, and looks less
-    /// unusual than it is.
+    // how unusual one day was, as a z-score: how many standard deviations it
+    // sits from the recent average.
+    //
+    // Judged day is left out of its own baseline on purpose. Otherwise a big
+    // spike drags up the average it is measured against, and looks less
+    // unusual than it is.
     private static func finding(
         for metric: AnalyticMetric,
         in series: [DatedValue],
@@ -89,7 +88,7 @@ enum AnomalyDetector {
                 + "\(metric.formattedWithUnit(baseline.mean)).")
     }
 
-    /// What to call the judged day: "yesterday" or "last night".
+    // "yesterday" for a daytime metric, "last night" for sleep
     private static func periodLabel(for metric: AnalyticMetric) -> String {
         switch metric {
         case .quantity: "yesterday"
