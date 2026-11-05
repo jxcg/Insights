@@ -18,7 +18,7 @@ import SwiftData
 struct InsightsApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
         }
         .modelContainer(Self.container)
     }
