@@ -62,9 +62,16 @@ enum CorrelationDetector {
         asOf now: Date = .now,
         calendar: Calendar = .current
     ) -> [Finding] {
-        let seriesByMetric = BaselineBuilder.dailySeries(
-            metrics: metrics, nights: nights, asOf: now)
+        detect(BaselineBuilder.dailySeries(metrics: metrics, nights: nights, asOf: now),
+               asOf: now, calendar: calendar)
+    }
 
+    /// The same, from series already built, so one refresh builds them once.
+    static func detect(
+        _ seriesByMetric: [AnalyticMetric: [DatedValue]],
+        asOf now: Date,
+        calendar: Calendar
+    ) -> [Finding] {
         var findings: [Finding] = []
         for hypothesis in hypotheses {
             guard let driverSeries = seriesByMetric[hypothesis.driver],

@@ -61,23 +61,18 @@ enum ReadinessCalculator {
     /// This morning's score, and how it moved since yesterday morning. nil
     /// when no input has a reading for its latest day plus enough history.
     static func readiness(
-        metrics: [DailyMetricRecord],
-        nights: [SleepNightRecord],
+        history: HealthHistory,
         asOf now: Date = .now,
         calendar: Calendar = .current
     ) -> Readiness? {
-        let seriesByMetric = BaselineBuilder.dailySeries(metrics: metrics, nights: nights, asOf: now)
-        guard let today = score(seriesByMetric, asOf: now, calendar: calendar) else {
+        guard let today = score(history.series(asOf: now), asOf: now, calendar: calendar) else {
             return nil
         }
 
         var delta: Int?
-        if let yesterdayMorning = calendar.date(byAdding: .day, value: -1, to: now) {
-            let earlierSeries = BaselineBuilder.dailySeries(
-                metrics: metrics, nights: nights, asOf: yesterdayMorning)
-            if let yesterday = score(earlierSeries, asOf: yesterdayMorning, calendar: calendar) {
-                delta = today.score - yesterday.score
-            }
+        if let yesterdayMorning = calendar.date(byAdding: .day, value: -1, to: now),
+           let yesterday = score(history.series(asOf: yesterdayMorning), asOf: yesterdayMorning, calendar: calendar) {
+            delta = today.score - yesterday.score
         }
 
         return Readiness(
@@ -90,8 +85,7 @@ enum ReadinessCalculator {
     /// The last seven mornings, oldest first, ending today. A morning with no
     /// score stays in the list as nil, so the chart keeps its shape.
     static func week(
-        metrics: [DailyMetricRecord],
-        nights: [SleepNightRecord],
+        history: HealthHistory,
         asOf now: Date = .now,
         calendar: Calendar = .current
     ) -> [DayReadiness] {
@@ -99,10 +93,9 @@ enum ReadinessCalculator {
             guard let morning = calendar.date(byAdding: .day, value: -daysAgo, to: now) else {
                 return nil
             }
-            let series = BaselineBuilder.dailySeries(metrics: metrics, nights: nights, asOf: morning)
             return DayReadiness(
                 day: calendar.startOfDay(for: morning),
-                score: score(series, asOf: morning, calendar: calendar)?.score)
+                score: score(history.series(asOf: morning), asOf: morning, calendar: calendar)?.score)
         }
     }
 

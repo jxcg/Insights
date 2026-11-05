@@ -15,7 +15,10 @@ struct DailySnapshot {
     var recoveryState: RecoveryState { readiness?.state ?? .recovered }
 
     let tiles: [MetricTile]
-    let insights: [Insight]
+
+    /// the only part narration changes, so it alone is replaced when the
+    /// reworded sentences arrive
+    var insights: [Insight]
 
     /// seven mornings, oldest first, ending today
     let weekReadiness: [DayReadiness]

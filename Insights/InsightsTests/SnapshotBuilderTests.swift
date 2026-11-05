@@ -2,18 +2,6 @@ import Foundation
 import Testing
 @testable import Insights
 
-/// Fixed calendar so window boundaries never depend on the machine's locale
-/// or timezone.
-private let utcCalendar: Calendar = {
-    var calendar = Calendar(identifier: .gregorian)
-    calendar.timeZone = TimeZone(identifier: "UTC")!
-    return calendar
-}()
-
-private func day(_ year: Int, _ month: Int, _ dayOfMonth: Int) -> Date {
-    utcCalendar.date(from: DateComponents(year: year, month: month, day: dayOfMonth))!
-}
-
 // midday 18 Jul: quantities judged on 17 Jul, last night ends 18 Jul
 private let now = day(2026, 7, 18).addingTimeInterval(12 * 3600)
 
@@ -60,7 +48,7 @@ private func build(
     lastSynced: Date? = now
 ) -> DailySnapshot {
     SnapshotBuilder.build(
-        metrics: metrics, nights: nights,
+        history: HealthHistory(metrics: metrics, nights: nights),
         digest: DailyDigest(insights: []),
         lastSynced: lastSynced, asOf: now, calendar: utcCalendar)
 }

@@ -2,18 +2,6 @@ import Foundation
 import Testing
 @testable import Insights
 
-/// Fixed calendar so window boundaries never depend on the machine's locale
-/// or timezone.
-private let utcCalendar: Calendar = {
-    var calendar = Calendar(identifier: .gregorian)
-    calendar.timeZone = TimeZone(identifier: "UTC")!
-    return calendar
-}()
-
-private func day(_ year: Int, _ month: Int, _ dayOfMonth: Int) -> Date {
-    utcCalendar.date(from: DateComponents(year: year, month: month, day: dayOfMonth))!
-}
-
 // sample standard deviation, written out independently of MetricBaseline
 private func sampleSD(_ values: [Double]) -> Double {
     let mean = values.reduce(0, +) / Double(values.count)
@@ -86,7 +74,8 @@ private struct Month {
     static func readiness(worseBy sd: Double = 0, include: Set<String> = ["hrv", "resting", "sleep"], historyDays: Int = 30) -> Readiness? {
         let month = records(worseBy: sd, include: include, historyDays: historyDays)
         return ReadinessCalculator.readiness(
-            metrics: month.metrics, nights: month.nights, asOf: now, calendar: utcCalendar)
+            history: HealthHistory(metrics: month.metrics, nights: month.nights),
+            asOf: now, calendar: utcCalendar)
     }
 }
 
@@ -166,7 +155,7 @@ private struct Month {
 
     @Test func noDataGivesNoScore() {
         let readiness = ReadinessCalculator.readiness(
-            metrics: [], nights: [], asOf: Month.now, calendar: utcCalendar)
+            history: HealthHistory(metrics: [], nights: []), asOf: Month.now, calendar: utcCalendar)
         #expect(readiness == nil)
     }
 
@@ -183,7 +172,8 @@ private struct Month {
     @Test func theWeekIsSevenMorningsEndingToday() {
         let month = Month.records()
         let week = ReadinessCalculator.week(
-            metrics: month.metrics, nights: month.nights, asOf: Month.now, calendar: utcCalendar)
+            history: HealthHistory(metrics: month.metrics, nights: month.nights),
+            asOf: Month.now, calendar: utcCalendar)
 
         #expect(week.count == 7)
         #expect(week.last?.day == day(2026, 7, 18))

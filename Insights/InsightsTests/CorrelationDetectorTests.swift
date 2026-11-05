@@ -2,23 +2,6 @@ import Foundation
 import Testing
 @testable import Insights
 
-/// Fixed calendar so window boundaries never depend on the machine's locale
-/// or timezone.
-private let utcCalendar: Calendar = {
-    var calendar = Calendar(identifier: .gregorian)
-    calendar.timeZone = TimeZone(identifier: "UTC")!
-    return calendar
-}()
-
-private func day(_ year: Int, _ month: Int, _ dayOfMonth: Int) -> Date {
-    utcCalendar.date(from: DateComponents(year: year, month: month, day: dayOfMonth))!
-}
-
-private func closeEnough(_ actual: Double?, _ expected: Double) -> Bool {
-    guard let actual else { return false }
-    return abs(actual - expected) < 0.000001
-}
-
 /// The correlation detector against hand-built series. Every r quoted in these
 /// tests was computed independently of the detector, so a change to the maths
 /// shows up as a failure rather than being silently blessed.
