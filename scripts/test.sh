@@ -30,7 +30,7 @@ find_simulator() {
     xcrun simctl list devices available --json | python3 -c '
 import json, sys
 
-min_version = tuple(int(part) for part in sys.argv[1].split("."))
+min_version = tuple(([int(part) for part in sys.argv[1].split(".")] + [0, 0])[:3])
 preferred = sys.argv[2]
 
 def version_of(runtime_key):
@@ -38,9 +38,11 @@ def version_of(runtime_key):
     if ".SimRuntime.iOS-" not in runtime_key:
         return None
     try:
-        return tuple(int(part) for part in runtime_key.rsplit("iOS-", 1)[1].split("-"))
+        parts = [int(part) for part in runtime_key.rsplit("iOS-", 1)[1].split("-")]
     except ValueError:
         return None
+    # padded so 27.2 and 27.2.0 compare equal and 27.2.1 sorts above both
+    return tuple((parts + [0, 0])[:3])
 
 candidates = []
 for runtime_key, devices in json.load(sys.stdin)["devices"].items():
@@ -60,50 +62,64 @@ if candidates:
 # CI only: install the selected Xcode's iOS runtime if needed, then create a
 # device on it
 create_simulator() {
-    local runtime_id
-    runtime_id="$(newest_ios_runtime)"
-    if [[ -z "$runtime_id" ]]; then
+    local pair
+    pair="$(runtime_and_device_type)"
+    if [[ -z "$pair" ]]; then
         echo "No iOS $min_ios+ simulator runtime installed; downloading one." >&2
         xcodebuild -downloadPlatform iOS >&2
-        runtime_id="$(newest_ios_runtime)"
+        pair="$(runtime_and_device_type)"
     fi
-    if [[ -z "$runtime_id" ]]; then
-        echo "error: still no iOS $min_ios+ runtime after download." >&2
+    if [[ -z "$pair" ]]; then
+        echo "error: still no iOS $min_ios+ runtime with an iPhone after download." >&2
+        xcrun simctl list runtimes >&2
         exit 1
     fi
 
-    local device_type
-    device_type="$(xcrun simctl list devicetypes --json | python3 -c '
-import json, sys
-types = [t for t in json.load(sys.stdin)["devicetypes"] if t["name"].startswith("iPhone")]
-preferred = [t for t in types if t["name"] == sys.argv[1]]
-print((preferred or types)[-1]["identifier"] if types else "")
-' "$preferred_device")"
-
+    local runtime_id="${pair% *}" device_type="${pair#* }"
     echo "Creating a simulator on $runtime_id ($device_type)." >&2
     xcrun simctl create "Insights CI" "$device_type" "$runtime_id"
 }
 
-# prints the identifier of the newest available iOS runtime at or above the
-# deployment target, or nothing
-newest_ios_runtime() {
+# prints "<runtime id> <device type id>": an available iOS runtime at or above
+# the deployment target, and an iPhone that runtime supports. Some runtimes
+# exist only for one model (iPhone Duo's has an -iPhone19-4 suffix), so the
+# runtime's own list of supported devices decides, never a guess. Prefers the
+# preferred device name, then the newest runtime.
+runtime_and_device_type() {
     xcrun simctl list runtimes available --json | python3 -c '
 import json, sys
-min_version = tuple(int(part) for part in sys.argv[1].split("."))
+min_version = tuple(([int(part) for part in sys.argv[1].split(".")] + [0, 0])[:3])
+preferred = sys.argv[2]
+
 def version_of(text):
     try:
-        return tuple(int(p) for p in text.split("."))
+        parts = [int(p) for p in text.split(".")]
     except ValueError:
         return None
+    # padded so 27.2 and 27.2.0 compare equal and 27.2.1 sorts above both
+    return tuple((parts + [0, 0])[:3])
 
-runtimes = [
-    (version_of(r["version"]), r["identifier"])
-    for r in json.load(sys.stdin)["runtimes"]
-    if r.get("platform") == "iOS" and r.get("isAvailable", True)
-]
-runtimes = [r for r in runtimes if r[0] is not None and r[0] >= min_version]
-print(max(runtimes)[1] if runtimes else "")
-' "$min_ios"
+candidates = []
+for runtime in json.load(sys.stdin)["runtimes"]:
+    version = version_of(runtime.get("version", ""))
+    if runtime.get("platform") != "iOS" or not runtime.get("isAvailable", True):
+        continue
+    if version is None or version < min_version:
+        continue
+    for device in runtime.get("supportedDeviceTypes", []):
+        if device.get("productFamily") == "iPhone" or device.get("name", "").startswith("iPhone"):
+            candidates.append((
+                device["name"] != preferred,
+                tuple(-v for v in version),
+                len(runtime["identifier"]),  # the general runtime over a single-model one
+                runtime["identifier"],
+                device["identifier"],
+            ))
+
+if candidates:
+    best = sorted(candidates)[0]
+    print(best[3], best[4])
+' "$min_ios" "$preferred_device"
 }
 
 simulator_id="${SIMULATOR_ID:-$(find_simulator)}"
