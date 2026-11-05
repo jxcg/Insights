@@ -28,3 +28,8 @@ scripts/test.sh InsightsTests/BaselineMathTests   # one suite or test
 The script picks an iPhone simulator running at least the app's deployment
 target, preferring iPhone 17. Set `SIMULATOR_ID` to a device UDID to choose one
 yourself. CI runs the same script.
+
+`scripts/screenshots.sh` launches the app on that simulator and saves
+screenshots of the Summary (sample data) and the first-launch screen to
+`screenshots/`. CI runs it after the tests and uploads the images. It
+reinstalls the app on that simulator, which clears the app's local data there.

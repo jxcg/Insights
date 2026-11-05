@@ -21,3 +21,6 @@ docs/
 
 # Xcode schemes are autocreated per-developer; sharing them only adds diff noise
 xcshareddata/
+
+# simulator screenshots from scripts/screenshots.sh
+screenshots/

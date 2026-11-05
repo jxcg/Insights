@@ -36,6 +36,33 @@ jobs:
           set -o pipefail
           scripts/test.sh 2>&1 | tee xcodebuild.log
 
+      # unit tests never launch the app; this does, and fails if it does not
+      # stay running
+      - name: Screenshots
+        run: scripts/screenshots.sh screenshots
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: screenshots/
+          if-no-files-found: ignore
+
+      # small JPEG copies in the log, for anyone who can read the log but not
+      # download artifacts. Each sits between PREVIEW-BEGIN and PREVIEW-END.
+      - name: Print screenshot previews
+        if: always()
+        run: |
+          shopt -s nullglob
+          for shot in screenshots/*.png; do
+            name="$(basename "$shot" .png)"
+            sips -s format jpeg -s formatOptions 55 -Z 640 "$shot" --out "/tmp/$name.jpg" >/dev/null || continue
+            echo "PREVIEW-BEGIN $name"
+            base64 -i "/tmp/$name.jpg" | fold -w 120
+            echo "PREVIEW-END $name"
+          done
+
       # the full log runs to thousands of lines; this keeps the cause findable
       - name: Summarise failures
         if: failure()
