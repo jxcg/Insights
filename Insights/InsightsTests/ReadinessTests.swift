@@ -217,6 +217,7 @@ private struct Month {
         #expect(noonReadiness.score == (includeTodaysSleep ? 44 : 49))
         #expect(noonReadiness.inputsUsed.contains(.sleepDuration) == includeTodaysSleep)
         #expect(noonDelta - earlyDelta == noonReadiness.score - earlyReadiness.score)
+        print("CI: readiness \"historical\" = \(earlyReadiness.score - earlyDelta), today = \(earlyReadiness.score) -> \(noonReadiness.score)")
     }
 
     @Test func historicalLateWakeUpsUseTheirLocalDayAcrossDST() {
