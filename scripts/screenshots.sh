@@ -7,7 +7,7 @@
 #
 # Takes two: the Summary on sample data, and the first-launch empty state.
 # Each starts from a fresh install. Fails if the app is not running a few
-# seconds after launch, and prints its resident memory at that point. Uses
+# seconds after launch, and prints its memory at that point. Uses
 # the same simulator and build folder as scripts/test.sh, so after a test run
 # the build is close to free.
 #
@@ -76,10 +76,12 @@ shoot() {
         exit 1
     fi
     xcrun simctl io "$simulator_id" screenshot "$out/$name.png" >/dev/null
-    # resident memory of the app process, to compare runs over time
-    local rss
+    # the app's own memory ("physical footprint", what iOS counts against
+    # an app), and resident memory, which also counts shared system libraries
+    local rss footprint
     rss="$(ps -o rss= -p "$pid" | tr -d ' ' || true)"
-    echo "Saved $out/$name.png · memory $(( ${rss:-0} / 1024 )) MB"
+    footprint="$(vmmap --summary "$pid" 2>/dev/null | awk -F': *' '/^Physical footprint:/ {print $2; exit}' || true)"
+    echo "Saved $out/$name.png · footprint ${footprint:-unknown} · resident $(( ${rss:-0} / 1024 )) MB"
 }
 
 shoot summary-sample-data -sampleData
