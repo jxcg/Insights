@@ -11,11 +11,20 @@ mock history data instead, add the following launch argument in Xcode:
 2. Select **Run** and open the **Arguments** tab.
 3. Add `-sampleData` to **Arguments Passed On Launch**.
 
+## Requirements
+
+* Xcode 27.2 or later (iOS 27.2 SDK)
+* iOS 27.2 or later, on device or simulator
+
 ## Testing
 
 Run the test suite from the repository root:
 
 ```bash
-xcodebuild test -project Insights/Insights.xcodeproj -scheme Insights \
-  -destination 'platform=iOS Simulator,name=iPhone 17'
+scripts/test.sh                                   # whole suite
+scripts/test.sh InsightsTests/BaselineMathTests   # one suite or test
 ```
+
+The script picks an iPhone simulator running at least the app's deployment
+target, preferring iPhone 17. Set `SIMULATOR_ID` to a device UDID to choose one
+yourself. CI runs the same script.
