@@ -2,26 +2,26 @@ import SwiftUI
 import SwiftData
 
 /// A window onto the cache, to prove the data underneath is right before any
-/// of it gets interpreted.
+/// of it gets interpreted. Lives in the Trends tab, and is where the metrics
+/// without a Summary tile are found.
 ///
-/// On launch it shows what is already stored and touches Apple Health not at
-/// all. The sync button is the only thing that does.
+/// It only reads what is stored. Syncs go through the shared SyncController,
+/// so this tab and the Summary never run two at once.
 struct ContentView: View {
-    private let healthKit = HealthKitService()
-
     @Environment(\.modelContext) private var modelContext
+    @Environment(SyncController.self) private var syncController
 
     // live views of the cache; they redraw themselves whenever a sync writes
     @Query private var metricRecords: [DailyMetricRecord]
     @Query(sort: \SleepNightRecord.wakeDay) private var nightRecords: [SleepNightRecord]
     @Query private var anchors: [SyncAnchorRecord]
 
-    @State private var errorMessage: String?
-    @State private var isSyncing = false
-
     var body: some View {
         NavigationStack {
-            dashboard
+            // nine metrics plus the extra rows outgrow a small screen
+            ScrollView {
+                dashboard
+            }
         }
     }
 
@@ -35,7 +35,7 @@ struct ContentView: View {
                     .foregroundStyle(.tint)
 
                 Text("Insights")
-                    .font(.system(.largeTitle, design: .serif))
+                    .font(.largeTitle)
             }
 
             Text(status)
@@ -47,10 +47,10 @@ struct ContentView: View {
                 EmptyView()
             } else if HealthKitService.isAvailable {
                 Button("Sync Apple Health") {
-                    Task { await sync() }
+                    Task { await syncController.sync(context: modelContext) }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(isSyncing)
+                .disabled(syncController.isSyncing)
             } else {
                 Text("Health data is not available from this device.")
                     .foregroundStyle(.secondary)
@@ -135,11 +135,7 @@ struct ContentView: View {
 
     // true only on a `-sampleData` run, always false in a release build
     private var isShowingSampleData: Bool {
-        #if DEBUG
-        SampleData.isEnabled
-        #else
-        false
-        #endif
+        SyncController.isShowingSampleData
     }
 
     // syncing wins over errors, errors over the cache's age. A last-synced
@@ -148,10 +144,10 @@ struct ContentView: View {
         if isShowingSampleData {
             return "Sample data — not real Health data"
         }
-        if isSyncing {
+        if syncController.isSyncing {
             return "Syncing…"
         }
-        if let errorMessage {
+        if let errorMessage = syncController.errorMessage {
             return errorMessage
         }
         if let lastSynced = anchors.map(\.lastSynced).max() {
@@ -192,24 +188,12 @@ struct ContentView: View {
         }
         return summary
     }
-
-    private func sync() async {
-        isSyncing = true
-        defer { isSyncing = false }
-        do {
-            try await healthKit.requestAuthorization()
-            await SyncService(healthKit: healthKit, context: modelContext).sync()
-            errorMessage = nil
-        } catch {
-            errorMessage = "Authorisation failed: \(error.localizedDescription)"
-        }
-        // May need another way to re-trigger in the event a user does not authorise, but doesn't want to go through Settings (if this is possible; am aware Apple does not make it easy to re-trigger events after a user denies permissions)
-    }
 }
 
 #if DEBUG
 #Preview {
     ContentView()
+        .environment(SyncController())
         .modelContainer(SampleData.container())
 }
 #endif
