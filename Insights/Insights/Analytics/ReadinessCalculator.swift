@@ -72,7 +72,7 @@ enum ReadinessCalculator {
         }
 
         var delta: Int?
-        if let yesterdayMorning = calendar.date(byAdding: .day, value: -1, to: now) {
+        if let yesterdayMorning = assessmentTime(daysAgo: 1, asOf: now, calendar: calendar) {
             let earlierSeries = BaselineBuilder.dailySeries(
                 metrics: metrics, nights: nights, asOf: yesterdayMorning)
             if let yesterday = score(earlierSeries, asOf: yesterdayMorning, calendar: calendar) {
@@ -96,7 +96,7 @@ enum ReadinessCalculator {
         calendar: Calendar = .current
     ) -> [DayReadiness] {
         (0..<7).reversed().compactMap { daysAgo in
-            guard let morning = calendar.date(byAdding: .day, value: -daysAgo, to: now) else {
+            guard let morning = assessmentTime(daysAgo: daysAgo, asOf: now, calendar: calendar) else {
                 return nil
             }
             let series = BaselineBuilder.dailySeries(metrics: metrics, nights: nights, asOf: morning)
@@ -104,6 +104,19 @@ enum ReadinessCalculator {
                 day: calendar.startOfDay(for: morning),
                 score: score(series, asOf: morning, calendar: calendar)?.score)
         }
+    }
+
+    // Past mornings use the last second of their local day, so historical
+    // sleep has a fixed settlement cutoff, including late wake-ups. Keep the
+    // date on that day: midnight of the next day would judge different data.
+    // Today alone uses the live clock and can still be waiting for sleep.
+    private static func assessmentTime(daysAgo: Int, asOf now: Date, calendar: Calendar) -> Date? {
+        guard daysAgo > 0 else { return now }
+        guard let day = calendar.date(byAdding: .day, value: -daysAgo, to: now),
+              let interval = calendar.dateInterval(of: .day, for: day) else {
+            return nil
+        }
+        return interval.end.addingTimeInterval(-1)
     }
 
     private struct DayScore {
