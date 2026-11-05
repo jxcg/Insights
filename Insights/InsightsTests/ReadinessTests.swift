@@ -180,4 +180,71 @@ private struct Month {
         #expect(week.first?.day == day(2026, 7, 12))
         #expect(week.last?.score == 70)
     }
+
+    @Test(arguments: [false, true])
+    func pastMorningsDoNotFollowTodaysClock(includeTodaysSleep: Bool) throws {
+        let month = Month.records(worseBy: 1)
+        let today = day(2026, 7, 18)
+        let nights = month.nights.filter { includeTodaysSleep || $0.wakeDay < today }
+        let early = today.addingTimeInterval(6.5 * 3600)
+
+        let earlyWeek = ReadinessCalculator.week(
+            history: HealthHistory(metrics: month.metrics, nights: nights), asOf: early, calendar: utcCalendar)
+        let noonWeek = ReadinessCalculator.week(
+            history: HealthHistory(metrics: month.metrics, nights: nights), asOf: Month.now, calendar: utcCalendar)
+        #expect(earlyWeek.map(\.day) == noonWeek.map(\.day))
+        #expect(earlyWeek.dropLast().allSatisfy { $0.score != nil })
+        #expect(earlyWeek.dropLast().map(\.score) == noonWeek.dropLast().map(\.score))
+
+        let earlyReadiness = try #require(ReadinessCalculator.readiness(
+            history: HealthHistory(metrics: month.metrics, nights: nights), asOf: early, calendar: utcCalendar))
+        let noonReadiness = try #require(ReadinessCalculator.readiness(
+            history: HealthHistory(metrics: month.metrics, nights: nights), asOf: Month.now, calendar: utcCalendar))
+        let earlyDelta = try #require(earlyReadiness.delta)
+        let noonDelta = try #require(noonReadiness.delta)
+
+        // Yesterday scores 80 with its settled sleep, regardless of the clock.
+        #expect(earlyReadiness.score - earlyDelta == 80)
+        #expect(noonReadiness.score - noonDelta == 80)
+        #expect(earlyWeek[5].score == 80)
+        #expect(earlyWeek.last?.score == earlyReadiness.score)
+        #expect(noonWeek.last?.score == noonReadiness.score)
+
+        // Today's unsettled sleep must still sit out at 06:30. Delta may move
+        // only by today's change, not by yesterday's sleep dropping in or out.
+        #expect(earlyReadiness.score == 49)
+        #expect(!earlyReadiness.inputsUsed.contains(.sleepDuration))
+        #expect(noonReadiness.score == (includeTodaysSleep ? 44 : 49))
+        #expect(noonReadiness.inputsUsed.contains(.sleepDuration) == includeTodaysSleep)
+        #expect(noonDelta - earlyDelta == noonReadiness.score - earlyReadiness.score)
+    }
+
+    @Test func historicalLateWakeUpsUseTheirLocalDayAcrossDST() {
+        var calendar = utcCalendar
+        calendar.timeZone = TimeZone(identifier: "Europe/London")!
+        // Yesterday was the 25-hour day when British Summer Time ended.
+        let today = calendar.date(from: DateComponents(year: 2026, month: 10, day: 26))!
+        let nights = (1...40).map { offset in
+            let wakeDay = calendar.date(byAdding: .day, value: -offset, to: today)!
+            let end = calendar.date(bySettingHour: 18, minute: 0, second: 0, of: wakeDay)!
+            let asleep = (offset.isMultiple(of: 2) ? 7.0 : 9.0) * 3600
+            return SleepNightRecord(night: SleepNight(
+                wakeDay: wakeDay, start: end.addingTimeInterval(-asleep), end: end,
+                asleep: asleep, deep: nil, rem: nil))
+        }
+        let earlyWeek = ReadinessCalculator.week(
+            history: HealthHistory(metrics: [], nights: nights), asOf: today.addingTimeInterval(6.5 * 3600), calendar: calendar)
+        let noonWeek = ReadinessCalculator.week(
+            history: HealthHistory(metrics: [], nights: nights), asOf: today.addingTimeInterval(12 * 3600), calendar: calendar)
+
+        #expect(earlyWeek.count == 7)
+        #expect(Set(earlyWeek.map(\.day)).count == 7)
+        #expect(earlyWeek.first?.day == calendar.date(byAdding: .day, value: -6, to: today))
+        #expect(earlyWeek.last?.day == today)
+        #expect(earlyWeek.dropLast().allSatisfy { $0.score != nil })
+        #expect(earlyWeek.map(\.score) == noonWeek.map(\.score))
+        // Yesterday's nine hours against a mean of eight, SD sqrt(30/29).
+        #expect(earlyWeek[5].score == 85)
+        #expect(earlyWeek.last?.score == nil)
+    }
 }
