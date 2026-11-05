@@ -27,6 +27,41 @@ private final class CountingNarrator: Narrator {
     }
 }
 
+/// Ignores cancellation and never answers blocked findings until test cleanup.
+private final class SuspendedNarrator: Narrator {
+    let blockedStatements: Set<String>
+    var onStart: (() -> Void)?
+    var responseDelay: Duration = .zero
+    private var pending: [CheckedContinuation<NarrationDraft, Never>] = []
+    private(set) var released = false
+
+    init(blockedStatements: Set<String>) {
+        self.blockedStatements = blockedStatements
+    }
+
+    func draft(for finding: Finding) async throws -> NarrationDraft {
+        if blockedStatements.contains(finding.plainStatement), !released {
+            return await withCheckedContinuation { continuation in
+                pending.append(continuation)
+                onStart?()
+            }
+        }
+        try await Task.sleep(for: responseDelay)
+        return response
+    }
+
+    func release() {
+        released = true
+        let continuations = pending
+        pending.removeAll()
+        for continuation in continuations { continuation.resume(returning: response) }
+    }
+
+    private var response: NarrationDraft {
+        NarrationDraft(sentence: "Your resting heart rate was 62 bpm, above 54 bpm.", tone: .cautionary)
+    }
+}
+
 private func finding(
     _ type: Finding.FindingType = .anomaly,
     metric: AnalyticMetric = .quantity(.restingHeartRate),
@@ -79,6 +114,78 @@ private func finding(
 
         #expect(digest.insights.map(\.source) == [.template, .model])
         #expect(digest.insights.first?.sentence == first.plainStatement)
+    }
+
+    @Test(arguments: [1, 2])
+    func stuckRequestsTimeOutAndLaterFindingsAreNarrated(stuckCount: Int) async {
+        let blocked = ["First", "Second"].prefix(stuckCount).map {
+            finding(plainStatement: "\($0): Resting heart rate was 62 bpm against 54 bpm.")
+        }
+        let link = finding(.correlation)
+        let findings = blocked + [link, finding()]
+        let narrator = SuspendedNarrator(blockedStatements: Set(blocked.map(\.plainStatement)))
+        narrator.responseDelay = .milliseconds(20)
+        // Independent cleanup also lets a broken implementation fail instead
+        // of leaving the test process suspended forever.
+        let watchdog = Task {
+            do { try await Task.sleep(for: .seconds(5)) }
+            catch { return }
+            narrator.release()
+        }
+        defer { watchdog.cancel(); narrator.release() }
+
+        let clock = ContinuousClock()
+        let start = clock.now
+        let digest = await InsightGenerator(narrator: narrator, requestTimeout: .milliseconds(150)).narrate(findings)
+        let elapsed = start.duration(to: clock.now)
+        #expect(elapsed >= .milliseconds(150 * stuckCount))
+        #expect(elapsed < .seconds(3))
+        #expect(!narrator.released)
+        #expect(digest.insights.map(\.finding.plainStatement) == findings.map(\.plainStatement))
+        #expect(digest.insights.dropLast().allSatisfy { $0.source == .template })
+        #expect(digest.insights.dropLast().map(\.sentence) == findings.dropLast().map(\.plainStatement))
+        #expect(digest.insights.last?.source == .model)
+    }
+
+    @Test func cancellingAStuckRequestReturnsWithoutWaitingForItsDeadline() async {
+        let first = finding()
+        let findings = [first, finding(plainStatement: "Later finding.")]
+        let narrator = SuspendedNarrator(blockedStatements: [first.plainStatement])
+        let (started, continuation) = AsyncStream<Void>.makeStream()
+        narrator.onStart = { continuation.yield(()); continuation.finish() }
+        let watchdog = Task {
+            do { try await Task.sleep(for: .seconds(2)) }
+            catch { return }
+            narrator.release()
+            continuation.finish()
+        }
+        defer { watchdog.cancel(); narrator.release() }
+
+        let task = Task {
+            await InsightGenerator(narrator: narrator, requestTimeout: .seconds(30)).narrate(findings)
+        }
+        defer { task.cancel() }
+        var didStart = false
+        for await _ in started { didStart = true; break }
+        #expect(didStart)
+        task.cancel()
+        let digest = await task.value
+
+        #expect(!narrator.released)
+        #expect(digest.insights.map(\.sentence) == findings.map(\.plainStatement))
+        #expect(digest.insights.allSatisfy { $0.source == .template })
+    }
+
+    @Test func cancellationBeforeStartingUsesOnlyTemplates() async {
+        let narrator = CountingNarrator()
+        let findings = [finding()]
+        let task = Task { await InsightGenerator(narrator: narrator).narrate(findings) }
+        task.cancel()
+        let digest = await task.value
+
+        #expect(narrator.calls == 0)
+        #expect(digest.insights.map(\.sentence) == findings.map(\.plainStatement))
+        #expect(digest.insights.allSatisfy { $0.source == .template })
     }
 
     @Test func orderIsKept() async {

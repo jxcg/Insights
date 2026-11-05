@@ -15,10 +15,12 @@ import Foundation
 /// only file that does.
 final class InsightGenerator {
     private let narrator: (any Narrator)?
+    private let requestTimeout: Duration
 
     /// nil narrator means "AI unavailable": every sentence is the template.
-    init(narrator: (any Narrator)?) {
+    init(narrator: (any Narrator)?, requestTimeout: Duration = .seconds(10)) {
         self.narrator = narrator
+        self.requestTimeout = requestTimeout
     }
 
     /// The generator the app runs with: Apple's on-device model when this
@@ -33,9 +35,9 @@ final class InsightGenerator {
         DailyDigest(insights: findings.map(NarratedInsight.template))
     }
 
-    /// One sentence per finding, in the order given. Findings are narrated one
-    /// at a time: the device runs one generation at a time anyway, and a
-    /// failure on one leaves the rest unaffected.
+    /// One sentence per finding, in the order given. Requests are awaited one
+    /// at a time. A timeout cancels the request without waiting for the model
+    /// to stop, so a stuck request cannot hold up the rest of the digest.
     func narrate(_ findings: [Finding]) async -> DailyDigest {
         guard let narrator else {
             return Self.templateDigest(for: findings)
@@ -49,7 +51,7 @@ final class InsightGenerator {
                 insights.append(.template(finding))
                 continue
             }
-            let draft = try? await narrator.draft(for: finding)
+            let draft = await draft(for: finding, using: narrator)
             if let draft, let sentence = NarrationCheck.accepted(draft, for: finding) {
                 insights.append(NarratedInsight(finding: finding, sentence: sentence, source: .model))
             } else {
@@ -57,6 +59,34 @@ final class InsightGenerator {
             }
         }
         return DailyDigest(insights: insights)
+    }
+
+    private func draft(for finding: Finding, using narrator: any Narrator) async -> NarrationDraft? {
+        let (stream, continuation) = AsyncStream<NarrationDraft>.makeStream(bufferingPolicy: .bufferingNewest(1))
+        // Unstructured deliberately: a task group would wait for a model that
+        // ignores cancellation even after its timeout child has finished.
+        let request = Task {
+            defer { continuation.finish() }
+            guard !Task.isCancelled else { return }
+            if let draft = try? await narrator.draft(for: finding) {
+                continuation.yield(draft)
+            }
+        }
+        let timeout = requestTimeout
+        let timer = Task {
+            do { try await Task.sleep(for: timeout) }
+            catch { return }
+            continuation.finish()
+        }
+        defer {
+            request.cancel()
+            timer.cancel()
+            continuation.finish()
+        }
+        // Cancellation ends the iteration too. Finishing the stream ignores
+        // late model results; neither timeout nor cancellation awaits them.
+        for await draft in stream { return Task.isCancelled ? nil : draft }
+        return nil
     }
 }
 
