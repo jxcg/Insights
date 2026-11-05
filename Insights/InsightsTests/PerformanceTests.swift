@@ -57,7 +57,8 @@ import Testing
                 _ = BaselineBuilder.dailySeries(metrics: cache.metrics, nights: cache.nights, asOf: now)
             }
         }
-        print("90-day Summary refresh: \(refresh); the old refresh's 28 record reads alone: \(oldRecordReads)")
+        // "CI:" lines are picked out of the result bundle into the CI log
+        print("CI: 90-day Summary refresh \(refresh); the old refresh's 28 record reads alone \(oldRecordReads)")
 
         #expect(snapshot?.readiness != nil)
         #expect(snapshot?.weekReadiness.count == 7)
