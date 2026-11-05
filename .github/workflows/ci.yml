@@ -36,6 +36,17 @@ jobs:
           set -o pipefail
           scripts/test.sh 2>&1 | tee xcodebuild.log
 
+      # exact pass and fail counts, and every line a test printed starting
+      # with "CI:", read from the result bundle: the console listing can come
+      # out incomplete, and test output never reaches it
+      - name: Test summary
+        if: ${{ !cancelled() }}
+        run: |
+          result="$(ls -td build/DerivedData/Logs/Test/*.xcresult 2>/dev/null | head -1)"
+          [ -n "$result" ] || exit 0
+          xcrun xcresulttool get test-results summary --path "$result" || true
+          xcrun xcresulttool get log --path "$result" --type console | grep -o 'CI: [^"\\]*' || true
+
       # unit tests never launch the app; this does, and fails if it does not
       # stay running
       - name: Screenshots
