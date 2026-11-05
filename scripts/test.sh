@@ -3,6 +3,7 @@
 #
 #   scripts/test.sh                                  # whole suite
 #   scripts/test.sh InsightsTests/BaselineMathTests  # one suite (or test)
+#   scripts/test.sh --print-simulator                # just print the UDID it would use
 #
 # Picks the simulator itself: an available iPhone whose iOS version is at least
 # the project's deployment target, preferring "iPhone 17". Set SIMULATOR_ID to
@@ -50,7 +51,8 @@ for runtime_key, devices in json.load(sys.stdin)["devices"].items():
     if version is None or version < min_version:
         continue
     for device in devices:
-        if device["name"].startswith("iPhone"):
+        # "Insights CI" is the device create_simulator makes
+        if device["name"].startswith("iPhone") or device["name"] == "Insights CI":
             # preferred name first, then the newest runtime
             candidates.append((device["name"] != preferred, tuple(-v for v in version), device["udid"]))
 
@@ -133,6 +135,12 @@ if [[ -z "$simulator_id" ]]; then
     fi
 fi
 
+# other scripts use the same simulator through this
+if [[ "${1:-}" == "--print-simulator" ]]; then
+    echo "$simulator_id"
+    exit 0
+fi
+
 echo "Xcode: $(xcodebuild -version | head -1)"
 echo "Testing on simulator $simulator_id (iOS $min_ios minimum)"
 
@@ -145,4 +153,5 @@ xcodebuild test \
     -project "$project" \
     -scheme Insights \
     -destination "id=$simulator_id" \
+    -derivedDataPath "$repo_root/build/DerivedData" \
     ${only_testing[@]+"${only_testing[@]}"}
