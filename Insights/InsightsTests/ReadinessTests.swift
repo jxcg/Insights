@@ -2,18 +2,6 @@ import Foundation
 import Testing
 @testable import Insights
 
-/// Fixed calendar so window boundaries never depend on the machine's locale
-/// or timezone.
-private let utcCalendar: Calendar = {
-    var calendar = Calendar(identifier: .gregorian)
-    calendar.timeZone = TimeZone(identifier: "UTC")!
-    return calendar
-}()
-
-private func day(_ year: Int, _ month: Int, _ dayOfMonth: Int) -> Date {
-    utcCalendar.date(from: DateComponents(year: year, month: month, day: dayOfMonth))!
-}
-
 // sample standard deviation, written out independently of MetricBaseline
 private func sampleSD(_ values: [Double]) -> Double {
     let mean = values.reduce(0, +) / Double(values.count)
@@ -86,7 +74,8 @@ private struct Month {
     static func readiness(worseBy sd: Double = 0, include: Set<String> = ["hrv", "resting", "sleep"], historyDays: Int = 30) -> Readiness? {
         let month = records(worseBy: sd, include: include, historyDays: historyDays)
         return ReadinessCalculator.readiness(
-            metrics: month.metrics, nights: month.nights, asOf: now, calendar: utcCalendar)
+            history: HealthHistory(metrics: month.metrics, nights: month.nights),
+            asOf: now, calendar: utcCalendar)
     }
 }
 
@@ -166,7 +155,7 @@ private struct Month {
 
     @Test func noDataGivesNoScore() {
         let readiness = ReadinessCalculator.readiness(
-            metrics: [], nights: [], asOf: Month.now, calendar: utcCalendar)
+            history: HealthHistory(metrics: [], nights: []), asOf: Month.now, calendar: utcCalendar)
         #expect(readiness == nil)
     }
 
@@ -183,7 +172,8 @@ private struct Month {
     @Test func theWeekIsSevenMorningsEndingToday() {
         let month = Month.records()
         let week = ReadinessCalculator.week(
-            metrics: month.metrics, nights: month.nights, asOf: Month.now, calendar: utcCalendar)
+            history: HealthHistory(metrics: month.metrics, nights: month.nights),
+            asOf: Month.now, calendar: utcCalendar)
 
         #expect(week.count == 7)
         #expect(week.last?.day == day(2026, 7, 18))
@@ -199,17 +189,17 @@ private struct Month {
         let early = today.addingTimeInterval(6.5 * 3600)
 
         let earlyWeek = ReadinessCalculator.week(
-            metrics: month.metrics, nights: nights, asOf: early, calendar: utcCalendar)
+            history: HealthHistory(metrics: month.metrics, nights: nights), asOf: early, calendar: utcCalendar)
         let noonWeek = ReadinessCalculator.week(
-            metrics: month.metrics, nights: nights, asOf: Month.now, calendar: utcCalendar)
+            history: HealthHistory(metrics: month.metrics, nights: nights), asOf: Month.now, calendar: utcCalendar)
         #expect(earlyWeek.map(\.day) == noonWeek.map(\.day))
         #expect(earlyWeek.dropLast().allSatisfy { $0.score != nil })
         #expect(earlyWeek.dropLast().map(\.score) == noonWeek.dropLast().map(\.score))
 
         let earlyReadiness = try #require(ReadinessCalculator.readiness(
-            metrics: month.metrics, nights: nights, asOf: early, calendar: utcCalendar))
+            history: HealthHistory(metrics: month.metrics, nights: nights), asOf: early, calendar: utcCalendar))
         let noonReadiness = try #require(ReadinessCalculator.readiness(
-            metrics: month.metrics, nights: nights, asOf: Month.now, calendar: utcCalendar))
+            history: HealthHistory(metrics: month.metrics, nights: nights), asOf: Month.now, calendar: utcCalendar))
         let earlyDelta = try #require(earlyReadiness.delta)
         let noonDelta = try #require(noonReadiness.delta)
 
@@ -227,6 +217,7 @@ private struct Month {
         #expect(noonReadiness.score == (includeTodaysSleep ? 44 : 49))
         #expect(noonReadiness.inputsUsed.contains(.sleepDuration) == includeTodaysSleep)
         #expect(noonDelta - earlyDelta == noonReadiness.score - earlyReadiness.score)
+        print("CI: readiness \"historical\" = \(earlyReadiness.score - earlyDelta), today = \(earlyReadiness.score) -> \(noonReadiness.score)")
     }
 
     @Test func historicalLateWakeUpsUseTheirLocalDayAcrossDST() {
@@ -243,9 +234,9 @@ private struct Month {
                 asleep: asleep, deep: nil, rem: nil))
         }
         let earlyWeek = ReadinessCalculator.week(
-            metrics: [], nights: nights, asOf: today.addingTimeInterval(6.5 * 3600), calendar: calendar)
+            history: HealthHistory(metrics: [], nights: nights), asOf: today.addingTimeInterval(6.5 * 3600), calendar: calendar)
         let noonWeek = ReadinessCalculator.week(
-            metrics: [], nights: nights, asOf: today.addingTimeInterval(12 * 3600), calendar: calendar)
+            history: HealthHistory(metrics: [], nights: nights), asOf: today.addingTimeInterval(12 * 3600), calendar: calendar)
 
         #expect(earlyWeek.count == 7)
         #expect(Set(earlyWeek.map(\.day)).count == 7)

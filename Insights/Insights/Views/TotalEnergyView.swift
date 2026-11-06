@@ -15,7 +15,6 @@ struct TotalEnergyView: View {
     }
 
     @State private var scope: Scope = .completeDays
-	@State private var selectedColor = "blue"
     @Query private var energyRecords: [DailyMetricRecord]
 
     init() {
@@ -91,7 +90,6 @@ struct TotalEnergyView: View {
 #Preview {
     NavigationStack {
         TotalEnergyView()
-			//.modelContainer(SampleData.container())
     }
     .modelContainer(for: [DailyMetricRecord.self], inMemory: true)
 }

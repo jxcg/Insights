@@ -2,18 +2,6 @@ import Foundation
 import Testing
 @testable import Insights
 
-/// Fixed calendar so window boundaries never depend on the machine's locale
-/// or timezone.
-private let utcCalendar: Calendar = {
-    var calendar = Calendar(identifier: .gregorian)
-    calendar.timeZone = TimeZone(identifier: "UTC")!
-    return calendar
-}()
-
-private func day(_ year: Int, _ month: Int, _ dayOfMonth: Int) -> Date {
-    utcCalendar.date(from: DateComponents(year: year, month: month, day: dayOfMonth))!
-}
-
 /// The whole engine over one synthetic month, checked end to end. The detectors
 /// have their own suites for whether they find the right things; these tests
 /// are about what survives being ranked together and handed on.

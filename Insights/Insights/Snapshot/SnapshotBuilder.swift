@@ -4,8 +4,8 @@ import Foundation
 /// a `DailySnapshot`.
 ///
 /// Pure: same inputs, same snapshot, no Health access and no model calls.
-/// Narration happens before this, so the screen can build a snapshot from
-/// templates instantly and rebuild it when the narrated digest arrives.
+/// Narration happens later and only replaces `insights`, so the screen builds
+/// a snapshot once, from templates, and never rebuilds it for wording.
 enum SnapshotBuilder {
     // a sync older than this shows the stale indicator. Twelve hours means a
     // morning open after an evening sync still reads fresh.
@@ -17,27 +17,22 @@ enum SnapshotBuilder {
     static let sparklineDays = 7
 
     static func build(
-        metrics: [DailyMetricRecord],
-        nights: [SleepNightRecord],
+        history: HealthHistory,
         digest: DailyDigest,
         lastSynced: Date?,
         asOf now: Date = .now,
         calendar: Calendar = .current
     ) -> DailySnapshot {
-        let provisional = provisionalData(nights: nights, asOf: now, calendar: calendar)
+        let provisional = provisionalData(history: history, asOf: now, calendar: calendar)
         return DailySnapshot(
-            readiness: ReadinessCalculator.readiness(
-                metrics: metrics, nights: nights, asOf: now, calendar: calendar),
-            tiles: tiles(
-                metrics: metrics, nights: nights, provisional: provisional,
-                asOf: now, calendar: calendar),
+            readiness: ReadinessCalculator.readiness(history: history, asOf: now, calendar: calendar),
+            tiles: tiles(history: history, provisional: provisional, asOf: now, calendar: calendar),
             insights: digest.insights.map(insight),
-            weekReadiness: ReadinessCalculator.week(
-                metrics: metrics, nights: nights, asOf: now, calendar: calendar),
+            weekReadiness: ReadinessCalculator.week(history: history, asOf: now, calendar: calendar),
             lastSynced: lastSynced,
             syncFresh: isFresh(lastSynced, asOf: now),
             provisional: provisional,
-            hasAnyData: !metrics.isEmpty || !nights.isEmpty)
+            hasAnyData: !history.isEmpty)
     }
 
     static func isFresh(_ lastSynced: Date?, asOf now: Date) -> Bool {
@@ -104,12 +99,11 @@ enum SnapshotBuilder {
     // MARK: Provisional data
 
     static func provisionalData(
-        nights: [SleepNightRecord],
+        history: HealthHistory,
         asOf now: Date,
         calendar: Calendar
     ) -> ProvisionalData {
-        let today = calendar.startOfDay(for: now)
-        guard let lastNight = nights.first(where: { calendar.startOfDay(for: $0.wakeDay) == today }),
+        guard let lastNight = history.night(wakingOn: calendar.startOfDay(for: now), calendar: calendar),
               now.timeIntervalSince(lastNight.end) < SleepNightAggregator.sessionGap else {
             return .settled
         }
@@ -119,18 +113,17 @@ enum SnapshotBuilder {
     // MARK: Tiles
 
     static func tiles(
-        metrics: [DailyMetricRecord],
-        nights: [SleepNightRecord],
+        history: HealthHistory,
         provisional: ProvisionalData,
         asOf now: Date,
         calendar: Calendar
     ) -> [MetricTile] {
-        let seriesByMetric = BaselineBuilder.dailySeries(metrics: metrics, nights: nights, asOf: now)
+        let seriesByMetric = history.series(asOf: now)
 
         // the same rule the engine uses for "unusual", so a tile and an
         // insight never disagree about whether something is off
         let outOfRange = Set(
-            AnomalyDetector.detect(metrics: metrics, nights: nights, asOf: now, calendar: calendar)
+            AnomalyDetector.detect(seriesByMetric, asOf: now, calendar: calendar)
                 .filter { $0.tone == .cautionary }
                 .map(\.metric))
 
@@ -144,7 +137,7 @@ enum SnapshotBuilder {
             switch tileMetric {
             case .sleep:
                 return sleepTile(
-                    latest: latest, usual: usual, nights: nights, provisional: provisional,
+                    latest: latest, usual: usual, history: history, provisional: provisional,
                     attention: outOfRange.contains(metric), today: judgedDay, calendar: calendar)
             case .hrv, .restingHeartRate:
                 return MetricTile(
@@ -180,7 +173,7 @@ enum SnapshotBuilder {
     private static func sleepTile(
         latest: Double?,
         usual: Double?,
-        nights: [SleepNightRecord],
+        history: HealthHistory,
         provisional: ProvisionalData,
         attention: Bool,
         today: Date,
@@ -195,7 +188,7 @@ enum SnapshotBuilder {
         }
 
         var visual = MetricTile.Visual.empty
-        if let night = nights.first(where: { calendar.startOfDay(for: $0.wakeDay) == today }),
+        if let night = history.night(wakingOn: today, calendar: calendar),
            night.asleep > 0, let deep = night.deep, let rem = night.rem {
             let deepShare = deep / night.asleep
             let remShare = rem / night.asleep

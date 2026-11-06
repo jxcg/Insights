@@ -7,17 +7,17 @@ import SwiftData
 struct FindingsView: View {
     @Query private var metricRecords: [DailyMetricRecord]
     @Query private var nightRecords: [SleepNightRecord]
+    @Query private var anchors: [SyncAnchorRecord]
 
-    private var findings: [Finding] {
-        InsightEngine.dailyFindings(metrics: metricRecords, nights: nightRecords)
-    }
+    // worked out when the cache changes, never inside body; nil until then
+    @State private var findings: [Finding]?
 
     var body: some View {
         List {
-            if findings.isEmpty {
+            if let findings, findings.isEmpty {
                 Text("Nothing stood out today. Sync some history and try again.")
                     .foregroundStyle(.secondary)
-            } else {
+            } else if let findings {
                 ForEach(Array(findings.enumerated()), id: \.offset) { position, finding in
                     row(position: position, finding: finding)
                 }
@@ -25,6 +25,14 @@ struct FindingsView: View {
         }
         .navigationTitle("Today's findings")
         .navigationBarTitleDisplayMode(.inline)
+        // a sync can replace records without changing their count, so the
+        // last sync time is part of what is watched
+        .task(id: [
+            Double(metricRecords.count), Double(nightRecords.count),
+            anchors.map(\.lastSynced).max()?.timeIntervalSince1970 ?? 0,
+        ]) {
+            findings = InsightEngine.dailyFindings(metrics: metricRecords, nights: nightRecords)
+        }
     }
 
     // one finding as the user would hear it, over the numbers that earned it

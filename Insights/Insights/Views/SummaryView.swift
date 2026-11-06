@@ -8,9 +8,9 @@ import SwiftUI
 /// aurora, the hero wording and which tiles get the attention treatment.
 ///
 /// It decides nothing itself. Everything shown comes from a `DailySnapshot`,
-/// built first from template sentences so the screen fills instantly, then
-/// rebuilt once on-device narration finishes. If narration never finishes,
-/// the templates simply stay.
+/// built once from template sentences so the screen fills instantly; when
+/// on-device narration finishes, only its insights are swapped. If narration
+/// never finishes, the templates simply stay.
 struct SummaryView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
@@ -125,28 +125,28 @@ struct SummaryView: View {
         // the very first build still runs mid-sync, so the screen is never
         // left blank while a sync that started first is still going
         guard !syncController.isSyncing || snapshot == nil else { return }
-        let findings = InsightEngine.dailyFindings(metrics: metricRecords, nights: nightRecords)
+
+        // the stored records are read once; everything below works on copies
+        let history = HealthHistory(metrics: metricRecords, nights: nightRecords)
+        let findings = InsightEngine.dailyFindings(history: history)
         // both texts: a trend's latest value is only in `meaning`, and a
         // narrated sentence may quote it
         let wording = findings.map { $0.plainStatement + $0.meaning }
 
-        if let lastNarrated,
-           lastNarrated.insights.map({ $0.finding.plainStatement + $0.finding.meaning }) == wording {
-            snapshot = makeSnapshot(digest: lastNarrated)
-            return
+        let reuse = lastNarrated.flatMap { cached in
+            cached.insights.map { $0.finding.plainStatement + $0.finding.meaning } == wording ? cached : nil
         }
-        snapshot = makeSnapshot(digest: InsightGenerator.templateDigest(for: findings))
+        snapshot = SnapshotBuilder.build(
+            history: history,
+            digest: reuse ?? InsightGenerator.templateDigest(for: findings),
+            lastSynced: lastSynced)
 
-        guard !findings.isEmpty else { return }
+        guard reuse == nil, !findings.isEmpty else { return }
         let narrated = await InsightGenerator.live().narrate(findings)
         guard !Task.isCancelled else { return }
         lastNarrated = narrated
-        snapshot = makeSnapshot(digest: narrated)
-    }
-
-    private func makeSnapshot(digest: DailyDigest) -> DailySnapshot {
-        SnapshotBuilder.build(
-            metrics: metricRecords, nights: nightRecords, digest: digest, lastSynced: lastSynced)
+        // only the sentences change; tiles, readiness and the week stay as built
+        snapshot?.insights = narrated.insights.map(SnapshotBuilder.insight)
     }
 }
 
