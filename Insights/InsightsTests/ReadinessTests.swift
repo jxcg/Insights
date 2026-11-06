@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 import Testing
 @testable import Insights
 
@@ -91,6 +92,44 @@ private struct Month {
 }
 
 @Suite struct ReadinessTests {
+
+    #if DEBUG
+    @Test @MainActor func sampleHistoryShowsPlausibleLowRecovery() throws {
+        let container = SampleData.container()
+        let metrics = try container.mainContext.fetch(FetchDescriptor<DailyMetricRecord>())
+        let nights = try container.mainContext.fetch(FetchDescriptor<SleepNightRecord>())
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: .now)
+        let noon = calendar.date(bySettingHour: 12, minute: 0, second: 0, of: today)!
+
+        // Both before and after sleep settles, the demo should look tired,
+        // not like every readiness input has hit its worst-case cap.
+        for now in [today, noon] {
+            let readiness = try #require(ReadinessCalculator.readiness(
+                metrics: metrics, nights: nights, asOf: now, calendar: calendar))
+            #expect((35...50).contains(readiness.score))
+            #expect(readiness.state == .lowRecovery)
+            #expect(readiness.delta != 0)
+        }
+
+        let week = ReadinessCalculator.week(
+            metrics: metrics, nights: nights, asOf: noon, calendar: calendar)
+        #expect(week.compactMap(\.score).count == 7)
+        #expect(Set(week.compactMap(\.score)).count >= 4)
+        let anomalies = AnomalyDetector.detect(
+            metrics: metrics, nights: nights, asOf: noon, calendar: calendar)
+        #expect(anomalies.contains { $0.tone == .cautionary })
+
+        let second = SampleData.container()
+        let repeated = try second.mainContext.fetch(FetchDescriptor<DailyMetricRecord>())
+        for kind in MetricKind.allCases {
+            let original = metrics.filter { $0.metricKind == kind.rawValue }.sorted { $0.date < $1.date }
+            let regenerated = repeated.filter { $0.metricKind == kind.rawValue }.sorted { $0.date < $1.date }
+            #expect(original.count == 90)
+            #expect(original.map(\.value) == regenerated.map(\.value))
+        }
+    }
+    #endif
 
     @Test func anOrdinaryMorningScoresSeventy() {
         // every input exactly at its own mean: z = 0 everywhere, 70 + 15 × 0
