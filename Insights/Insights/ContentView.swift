@@ -1,12 +1,12 @@
 import SwiftUI
 import SwiftData
 
-/// A window onto the cache, to prove the data underneath is right before any
-/// of it gets interpreted. Lives in the Trends tab, and is where the metrics
-/// without a Summary tile are found.
+/// The Trends tab: a window onto the cache, raw, including the metrics without
+/// a Summary tile. Each row opens that metric's day-by-day table, so numbers
+/// can be checked against the Health app.
 ///
-/// It only reads what is stored. Syncs go through the shared SyncController,
-/// so this tab and the Summary never run two at once.
+/// Syncs go through the shared SyncController, so this tab and the Summary
+/// never run two at once.
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(SyncController.self) private var syncController
@@ -16,132 +16,99 @@ struct ContentView: View {
     @Query(sort: \SleepNightRecord.wakeDay) private var nightRecords: [SleepNightRecord]
     @Query private var anchors: [SyncAnchorRecord]
 
+    // worked out when the cache changes, never inside body; nil until then
+    @State private var rankedFindingCount: Int?
+
     var body: some View {
+        // one pass over the records per redraw, not one per metric
+        let daysByKind = metricRecords.reduce(into: [String: Int]()) { $0[$1.metricKind, default: 0] += 1 }
+
         NavigationStack {
-            // nine metrics plus the extra rows outgrow a small screen
-            ScrollView {
-                dashboard
-            }
-        }
-    }
-
-    // header, sync button, and what the cache holds. Each row links through to
-    // that metric's raw day-by-day table.
-    private var dashboard: some View {
-        VStack(spacing: 16) {
-            HStack {
-                Image(systemName: "heart.text.clipboard")
-                    .font(.system(.largeTitle))
-                    .foregroundStyle(.tint)
-
-                Text("Insights")
-                    .font(.largeTitle)
-            }
-
-            Text(status)
-                .foregroundStyle(.secondary)
-
-            if isShowingSampleData {
-                // syncing here would pour the simulator's own Health data into
-                // the invented history and leave a tester looking at both
-                EmptyView()
-            } else if HealthKitService.isAvailable {
-                Button("Sync Apple Health") {
-                    Task { await syncController.sync(context: modelContext) }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(syncController.isSyncing)
-            } else {
-                Text("Health data is not available from this device.")
-                    .foregroundStyle(.secondary)
-            }
-
-            if !metricRecords.isEmpty || !nightRecords.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    NavigationLink {
-                        FindingsView()
-                    } label: {
-                        HStack {
-                            Text("Today's findings")
-                            Spacer()
-                            Text("top \(rankedFindingCount)")
-                                .monospacedDigit()
-                                .foregroundStyle(rankedFindingCount == 0 ? .secondary : .primary)
-                            Image(systemName: "chevron.right")
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
-                        }
-                        .font(.callout)
+            List {
+                Section {
+                    HStack {
+                        Image(systemName: "heart.text.clipboard")
+                            .font(.system(.largeTitle))
+                            .foregroundStyle(.tint)
+                        Text("Insights")
+                            .font(.largeTitle)
                     }
-                    .buttonStyle(.plain)
+                    Text(status)
+                        .foregroundStyle(.secondary)
+                    if SyncController.isShowingSampleData {
+                        // syncing here would pour the simulator's own Health
+                        // data into the invented history
+                        EmptyView()
+                    } else if HealthKitService.isAvailable {
+                        Button("Sync Apple Health") {
+                            Task { await syncController.sync(context: modelContext) }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(syncController.isSyncing)
+                    } else {
+                        Text("Health data is not available from this device.")
+                            .foregroundStyle(.secondary)
+                    }
+                }
 
-                    Divider()
-
-                    ForEach(dayCounts, id: \.metric) { entry in
-                        NavigationLink {
-                            MetricDetailView(kind: entry.metric)
-                        } label: {
-                            HStack {
-                                Text(entry.metric.displayName)
-                                Spacer()
-                                Text("\(entry.days) days")
-                                    .monospacedDigit()
-                                    .foregroundStyle(entry.days == 0 ? .secondary : .primary)
-                                Image(systemName: "chevron.right")
-                                    .font(.caption2)
-                                    .foregroundStyle(.tertiary)
+                if !metricRecords.isEmpty || !nightRecords.isEmpty {
+                    Section {
+                        // zero is a real answer: a quiet day has nothing to say
+                        row("Today's findings",
+                            detail: rankedFindingCount.map { "top \($0)" } ?? "top …",
+                            isZero: rankedFindingCount == 0) { FindingsView() }
+                    }
+                    Section {
+                        ForEach(MetricKind.allCases) { kind in
+                            let days = daysByKind[kind.rawValue] ?? 0
+                            row(kind.displayName, detail: "\(days) days", isZero: days == 0) {
+                                MetricDetailView(kind: kind)
                             }
-                            .font(.callout)
                         }
-                        .buttonStyle(.plain)
-                    }
-                    NavigationLink {
-                        TotalEnergyView()
-                    } label: {
-                        HStack {
-                            Text("Total energy")
-                            Spacer()
-                            Text("\(totalEnergyDays) days")
-                                .monospacedDigit()
-                                .foregroundStyle(totalEnergyDays == 0 ? .secondary : .primary)
-                            Image(systemName: "chevron.right")
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
+                        let energyDays = totalEnergyDays
+                        row("Total energy", detail: "\(energyDays) days", isZero: energyDays == 0) {
+                            TotalEnergyView()
                         }
-                        .font(.callout)
+                        row("Sleep nights", detail: sleepSummary) { SleepNightsView() }
                     }
-                    .buttonStyle(.plain)
-                    NavigationLink {
-                        SleepNightsView()
-                    } label: {
-                        HStack {
-                            Text("Sleep nights")
-                            Spacer()
-                            Text(sleepSummary)
-                                .monospacedDigit()
-                            Image(systemName: "chevron.right")
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
-                        }
-                        .font(.callout)
-                    }
-                    .buttonStyle(.plain)
                 }
-                .padding(.top, 8)
             }
         }
-        .padding()
+        // a sync can replace records without changing their count, so the
+        // last sync time is part of what is watched
+        .task(id: [
+            Double(metricRecords.count), Double(nightRecords.count),
+            anchors.map(\.lastSynced).max()?.timeIntervalSince1970 ?? 0,
+        ]) {
+            rankedFindingCount = InsightEngine.dailyFindings(metrics: metricRecords, nights: nightRecords).count
+        }
     }
 
-    // true only on a `-sampleData` run, always false in a release build
-    private var isShowingSampleData: Bool {
-        SyncController.isShowingSampleData
+    // a zero count reads quieter, as it always has
+    private func row<Destination: View>(
+        _ title: String,
+        detail: String,
+        isZero: Bool = false,
+        @ViewBuilder destination: () -> Destination
+    ) -> some View {
+        NavigationLink {
+            destination()
+        } label: {
+            HStack {
+                Text(title)
+                Spacer()
+                Text(detail)
+                    .monospacedDigit()
+                    .foregroundStyle(isZero ? .secondary : .primary)
+            }
+            .font(.callout)
+        }
     }
 
     // syncing wins over errors, errors over the cache's age. A last-synced
     // time surviving a relaunch means the cache is doing its job.
     private var status: String {
-        if isShowingSampleData {
+        if SyncController.isShowingSampleData {
             return "Sample data — not real Health data"
         }
         if syncController.isSyncing {
@@ -154,17 +121,6 @@ struct ContentView: View {
             return "Last synced \(lastSynced.formatted(date: .abbreviated, time: .shortened))"
         }
         return "Not connected"
-    }
-
-    // zero is a real answer here: a quiet day genuinely has nothing to say
-    private var rankedFindingCount: Int {
-        InsightEngine.dailyFindings(metrics: metricRecords, nights: nightRecords).count
-    }
-
-    private var dayCounts: [(metric: MetricKind, days: Int)] {
-        MetricKind.allCases.map { kind in
-            (metric: kind, days: metricRecords.filter { $0.metricKind == kind.rawValue }.count)
-        }
     }
 
     // days complete enough to have earned a total, the same join the detail

@@ -36,6 +36,23 @@ jobs:
           set -o pipefail
           scripts/test.sh 2>&1 | tee xcodebuild.log
 
+      # exact pass and fail counts, and every line a test printed starting
+      # with "CI:", read from the result bundle: the console listing can come
+      # out incomplete, and test output never reaches it
+      - name: Test summary
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: |
+          result="$(ls -td build/DerivedData/Logs/Test/*.xcresult 2>/dev/null | head -1 || true)"
+          [ -n "$result" ] || exit 0
+          xcrun xcresulttool get test-results summary --path "$result" || true
+          # Unit-test stdout lives in exported diagnostics, not the console log.
+          diagnostics="$(mktemp -d)" || exit 0
+          trap 'rm -rf "$diagnostics" || true' EXIT
+          xcrun xcresulttool export diagnostics --path "$result" --output-path "$diagnostics/logs" >/dev/null || exit 0
+          find "$diagnostics/logs" -type f -name '*StandardOutputAndStandardError*' \
+            -exec grep -ah '^CI:' {} + || true
+
       # unit tests never launch the app; this does, and fails if it does not
       # stay running
       - name: Screenshots

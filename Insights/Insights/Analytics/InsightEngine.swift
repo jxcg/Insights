@@ -11,14 +11,20 @@ enum InsightEngine {
         asOf now: Date = .now,
         calendar: Calendar = .current
     ) -> [Finding] {
-        let everythingFound =
-            AnomalyDetector.detect(
-                metrics: metrics, nights: nights, asOf: now, calendar: calendar)
-            + TrendDetector.detect(
-                metrics: metrics, nights: nights, asOf: now, calendar: calendar)
-            + CorrelationDetector.detect(
-                metrics: metrics, nights: nights, asOf: now, calendar: calendar)
+        dailyFindings(
+            history: HealthHistory(metrics: metrics, nights: nights), asOf: now, calendar: calendar)
+    }
 
-        return FindingRanker.rank(everythingFound)
+    // the series are built once and shared by all three detectors
+    static func dailyFindings(
+        history: HealthHistory,
+        asOf now: Date = .now,
+        calendar: Calendar = .current
+    ) -> [Finding] {
+        let series = history.series(asOf: now)
+        return FindingRanker.rank(
+            AnomalyDetector.detect(series, asOf: now, calendar: calendar)
+                + TrendDetector.detect(series, asOf: now, calendar: calendar)
+                + CorrelationDetector.detect(series, asOf: now, calendar: calendar))
     }
 }
