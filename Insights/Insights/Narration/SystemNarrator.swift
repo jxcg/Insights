@@ -26,7 +26,7 @@ struct SystemNarrator: Narrator {
         let response = try await session.respond(
             to: NarrationCheck.prompt(for: finding),
             generating: InsightCard.self,
-            options: GenerationOptions(sampling: .greedy))
+            options: GenerationOptions(samplingMode: .greedy))
         return NarrationDraft(
             sentence: response.content.sentence,
             tone: Self.findingTone(response.content.tone))
